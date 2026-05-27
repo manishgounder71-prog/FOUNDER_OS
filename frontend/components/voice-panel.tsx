@@ -41,6 +41,8 @@ export default function VoicePanel({ onTriggerWorkflow, onResearchQuery, isExecu
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const animationFrameRef = useRef<number | null>(null);
+  const recognitionRef = useRef<any>(null);
+  const recognitionTranscriptRef = useRef<string>("");
 
   const currentPhase = STATUS_PHASES.find(p => p.key === phase) ?? STATUS_PHASES[0];
 
@@ -53,12 +55,18 @@ export default function VoicePanel({ onTriggerWorkflow, onResearchQuery, isExecu
       if (audioContextRef.current) {
         audioContextRef.current.close().catch(() => {});
       }
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.abort();
+        } catch (e) {}
+      }
     };
   }, []);
 
   const startRecording = async () => {
     setError(null);
     audioChunksRef.current = [];
+    recognitionTranscriptRef.current = "";
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const mediaRecorder = new MediaRecorder(stream);
@@ -92,6 +100,34 @@ export default function VoicePanel({ onTriggerWorkflow, onResearchQuery, isExecu
         draw();
       }
 
+      // Browser Web Speech API local transcription setup
+      const SpeechRecognitionClass = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      if (SpeechRecognitionClass) {
+        const recognition = new SpeechRecognitionClass();
+        recognition.continuous = false;
+        recognition.interimResults = false;
+        recognition.lang = "en-US";
+
+        recognition.onresult = (event: any) => {
+          if (event.results && event.results[0] && event.results[0][0]) {
+            const transcriptText = event.results[0][0].transcript;
+            recognitionTranscriptRef.current = transcriptText;
+            console.log("[WebSpeech] Transcribed locally:", transcriptText);
+          }
+        };
+
+        recognition.onerror = (err: any) => {
+          console.warn("[WebSpeech] Local speech error:", err);
+        };
+
+        recognitionRef.current = recognition;
+        try {
+          recognition.start();
+        } catch (e) {
+          console.error("[WebSpeech] Recognition start failed:", e);
+        }
+      }
+
       mediaRecorder.ondataavailable = (event) => {
         if (event.data.size > 0) audioChunksRef.current.push(event.data);
       };
@@ -99,9 +135,25 @@ export default function VoicePanel({ onTriggerWorkflow, onResearchQuery, isExecu
       mediaRecorder.onstop = async () => {
         const audioBlob = new Blob(audioChunksRef.current, { type: "audio/wav" });
         setPhase("transcribing");
-        setStatusMsg("Transcribing via Whisper API...");
+        setStatusMsg("Transcribing speech...");
+
+        // Wait a short moment to allow local SpeechRecognition to finalize its async result event
+        await new Promise((resolve) => setTimeout(resolve, 800));
+
+        let transcript = recognitionTranscriptRef.current.trim();
+        console.log("[Voice Intake] Selected transcript text:", transcript || "(empty, falling back to backend)");
+
         try {
-          const transcript = await transcribeAudio(audioBlob);
+          if (!transcript) {
+            // Fallback to backend Whisper transcription if browser Speech Recognition returned empty
+            const backendRes = await transcribeAudio(audioBlob);
+            transcript = backendRes;
+          }
+
+          if (!transcript || !transcript.trim()) {
+            throw new Error("No speech transcription captured.");
+          }
+
           setStatusMsg(`Transcribed: "${transcript}"`);
           setPhase("deploying");
           const res = await simulateOmiWebhook(transcript);
@@ -128,6 +180,13 @@ export default function VoicePanel({ onTriggerWorkflow, onResearchQuery, isExecu
     if (mediaRecorderRef.current && isRecording) {
       mediaRecorderRef.current.stop();
       setIsRecording(false);
+
+      // Stop Speech Recognition
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.stop();
+        } catch (e) {}
+      }
 
       // Stop Web Audio nodes
       if (animationFrameRef.current) {
