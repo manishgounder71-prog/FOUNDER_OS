@@ -113,8 +113,15 @@ def save_memory(collection: str, text: str, metadata: Optional[Dict[str, Any]] =
     )
     return point_id
 
+# Minimum cosine similarity score to consider a result relevant.
+# Cosine similarity of 1.0 = identical, 0.0 = unrelated, <0.0 = opposite.
+# 0.40 is a practical threshold: below this the topic is genuinely different.
+SCORE_THRESHOLD = 0.40
+
 def search_memory(collection: str, query: str, limit: int = 5) -> List[Dict[str, Any]]:
-    """Searches a specific collection semantically based on a query string."""
+    """Searches a specific collection semantically based on a query string.
+    Only returns results whose cosine similarity meets the SCORE_THRESHOLD.
+    """
     if collection not in COLLECTIONS:
         raise ValueError(f"Invalid collection name: {collection}")
         
@@ -122,7 +129,8 @@ def search_memory(collection: str, query: str, limit: int = 5) -> List[Dict[str,
     search_results = get_qdrant_client().query_points(
         collection_name=collection,
         query=vector,
-        limit=limit
+        limit=limit,
+        score_threshold=SCORE_THRESHOLD
     )
     
     results = []
@@ -158,10 +166,13 @@ def get_all_memories(collection: str, limit: int = 100) -> List[Dict[str, Any]]:
     return results
 
 def search_all_collections(query: str, limit_per_collection: int = 3) -> Dict[str, List[Dict[str, Any]]]:
-    """Queries all collections semantically and returns aggregated results."""
+    """Queries all collections semantically and returns aggregated results.
+    Only includes collections that have at least one result above SCORE_THRESHOLD.
+    """
     aggregated = {}
     for col in COLLECTIONS:
         results = search_memory(col, query, limit=limit_per_collection)
+        # Only include collections with genuine matches (score_threshold already applied)
         if results:
             aggregated[col] = results
     return aggregated
