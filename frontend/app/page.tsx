@@ -11,7 +11,8 @@ import TaskBoard from "@/components/task-board";
 import HudMetrics from "@/components/hud-metrics";
 import AutonomousPlanningOverlay from "@/components/autonomous-planning-overlay";
 import BrainGraph from "@/components/brain-graph";
-import { BACKEND_URL, getTimeline, TimelineItem, Task } from "@/lib/api";
+import { BACKEND_URL, getTimeline, TimelineItem, Task, executeDirectiveResearch } from "@/lib/api";
+import DirectivePanel from "@/components/directive-panel";
 import { Radio, Database, Cpu, Shield } from "lucide-react";
 import confetti from "canvas-confetti";
 
@@ -33,6 +34,12 @@ export default function Home() {
   const [timelineItems, setTimelineItems] = useState<TimelineItem[]>([]);
   const [isTimelineLoading, setIsTimelineLoading] = useState(false);
 
+  // Directive Research states
+  const [directiveResults, setDirectiveResults] = useState<any[]>([]);
+  const [isResearching, setIsResearching] = useState(false);
+  const [directiveQuery, setDirectiveQuery] = useState("");
+  const [directiveError, setDirectiveError] = useState<string | null>(null);
+
   // Autonomous Planning Overlay states
   const [overlayVisible, setOverlayVisible] = useState(false);
   const [overlayPrompt, setOverlayPrompt] = useState("");
@@ -52,6 +59,53 @@ export default function Home() {
       console.error("Error fetching timeline:", err);
     } finally {
       setIsTimelineLoading(false);
+    }
+  };
+
+  const handleResearchQuery = async (query: string) => {
+    setDirectiveQuery(query);
+    setDirectiveResults([]);
+    setDirectiveError(null);
+    setIsResearching(true);
+
+    try {
+      const { directive_id } = await executeDirectiveResearch(query);
+
+      const eventSource = new EventSource(`${BACKEND_URL}/api/directive/stream/${directive_id}`);
+
+      eventSource.onmessage = (event) => {
+        try {
+          const payload = JSON.parse(event.data);
+          const { event: eventName, data } = payload;
+
+          switch (eventName) {
+            case "result_found":
+              setDirectiveResults((prev) => [...prev, data.result]);
+              break;
+            case "research_completed":
+              setDirectiveResults(data.results);
+              setIsResearching(false);
+              eventSource.close();
+              break;
+            case "research_failed":
+              setDirectiveError(data.error || "Research failed");
+              setIsResearching(false);
+              eventSource.close();
+              break;
+          }
+        } catch (err) {
+          console.error("Directive SSE parse error:", err);
+        }
+      };
+
+      eventSource.onerror = () => {
+        setDirectiveError("Connection lost during research");
+        setIsResearching(false);
+        eventSource.close();
+      };
+    } catch (err: any) {
+      setDirectiveError(err.message || "Failed to start research");
+      setIsResearching(false);
     }
   };
 
@@ -355,10 +409,23 @@ export default function Home() {
       <div className="flex-1 p-6 grid grid-cols-1 xl:grid-cols-4 gap-6 z-10 max-w-[1700px] w-full mx-auto">
         {/* LEFT COLUMN: Voice intake & Task execution checklist */}
         <div className="xl:col-span-1 flex flex-col gap-6">
-          <div className="h-[460px]">
-            <VoicePanel onTriggerWorkflow={handleTriggerWorkflow} isExecuting={isExecuting} />
+          <div className="h-[380px]">
+            <VoicePanel
+              onTriggerWorkflow={handleTriggerWorkflow}
+              onResearchQuery={handleResearchQuery}
+              isExecuting={isExecuting}
+              isResearching={isResearching}
+            />
           </div>
-          <div className="h-[280px]">
+          <div className="max-h-[200px] overflow-y-auto">
+            <DirectivePanel
+              results={directiveResults}
+              isSearching={isResearching}
+              query={directiveQuery}
+              error={directiveError}
+            />
+          </div>
+          <div className="h-[140px]">
             <TaskBoard tasks={tasks} />
           </div>
         </div>

@@ -5,15 +5,23 @@ REVIEWER_PERSONA = """You are the Principal Strategy Reviewer and Executive Dire
 Your role is to evaluate inputs from the Researcher and Planner, check task compliance, refine the output for clarity and conciseness, 
 and write the final executive launch strategy report.
 Your output must look like a premium corporate deck or business proposal in Markdown. Make sure it is exceptionally clean and structured.
+Prioritize depth — every section must contain substantive research-backed analysis, not generic filler.
 """
 
-REVIEWER_INSTRUCTIONS = """Synthesize the research and goals into a unified launch strategy proposal.
-Ensure you outline:
-1. Executive Summary & Tagline.
-2. Competitive Advantage Table.
-3. Complete 4-week execution roadmap.
-4. Core recommendations and launch channels.
-Make the tone professional, ambitious, and premium. Avoid writing placeholders."""
+REVIEWER_INSTRUCTIONS = """Synthesize all research, financial, and marketing inputs into a comprehensive launch strategy proposal.
+Your report MUST include ALL of the following sections with detailed, research-backed content:
+
+1. Executive Summary & Tagline — high-level vision, problem, solution, market opportunity.
+2. Market Opportunity & Industry Trends — TAM/SAM/SOM, growth rate, emerging trends, technology shifts.
+3. Customer Pain Points & Value Proposition — what existing solutions miss and how this product solves it.
+4. Competitive Landscape — detailed comparison table (at least 4 competitors), positioning map, differentiation.
+5. SWOT Analysis — strengths, weaknesses, opportunities, threats with strategic implications.
+6. Technology Stack & Innovation — key tools, frameworks, AI infrastructure, architectural decisions.
+7. Risk Assessment & Mitigation — regulatory, technical, market, and operational risks with mitigation plans.
+8. Go-to-Market Strategy — 4-week execution roadmap, launch channels, positioning, pricing summary.
+9. Core Recommendations & Next Steps — prioritized action items, timeline, success metrics.
+
+Make the tone professional, ambitious, and premium. Each section must have substance — no placeholder text or generic statements."""
 
 def run_reviewer(prompt: str, research_report: str, planner_tasks: str, financial_report: str = "", content_report: str = "") -> str:
     """Invokes the Reviewer Agent to synthesize, polish, and output the final startup strategy proposal."""

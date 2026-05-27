@@ -2,13 +2,8 @@
 
 import React, { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Mic, MicOff, Radio, Play, AlertCircle, Zap } from "lucide-react";
+import { Mic, MicOff, Radio, Play, AlertCircle, Zap, Search } from "lucide-react";
 import { transcribeAudio, simulateOmiWebhook } from "@/lib/api";
-
-interface VoicePanelProps {
-  onTriggerWorkflow: (workflowId: string, promptText: string) => void;
-  isExecuting: boolean;
-}
 
 const PRESET_PROMPTS = [
   "Create a launch strategy for an AI shopping app.",
@@ -25,7 +20,7 @@ const STATUS_PHASES = [
   { key: "running",      label: "EXECUTING — Agents Running...",        color: "text-green-400" },
 ];
 
-export default function VoicePanel({ onTriggerWorkflow, isExecuting }: VoicePanelProps) {
+export default function VoicePanel({ onTriggerWorkflow, onResearchQuery, isExecuting, isResearching }: VoicePanelProps) {
   const [isRecording, setIsRecording] = useState(false);
   const [phase, setPhase] = useState<string>("standby");
   const [statusMsg, setStatusMsg] = useState("Ready to receive commands...");
@@ -229,6 +224,29 @@ export default function VoicePanel({ onTriggerWorkflow, isExecuting }: VoicePane
       </div>
 
       {/* Omi simulator */}
+      {/* Research Now inline button */}
+      <AnimatePresence>
+        {customPrompt.trim() && !isExecuting && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            className="px-1"
+          >
+            <motion.button
+              onClick={() => onResearchQuery(customPrompt.trim())}
+              disabled={isResearching}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              className="w-full bg-gradient-to-r from-cyan-500/10 to-emerald-500/10 hover:from-cyan-500/20 hover:to-emerald-500/20 border border-cyan-500/30 text-cyan-300 disabled:opacity-40 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all duration-300 flex items-center justify-center gap-2 font-mono mb-2"
+            >
+              <Search className="w-3 h-3" />
+              {isResearching ? "Researching Web..." : "Research Now — Real-Time Web"}
+            </motion.button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <div className="border-t border-gray-800/70 pt-3 space-y-2">
         <h3 className="text-[9px] font-bold text-gray-500 uppercase tracking-[0.25em] flex items-center gap-1.5">
           <Radio className="w-3 h-3 text-purple-400" /> Omi Webhook Simulator

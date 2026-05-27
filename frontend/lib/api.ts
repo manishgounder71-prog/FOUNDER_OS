@@ -93,7 +93,22 @@ export async function getTimeline(): Promise<TimelineItem[]> {
 }
 
 /**
- * Uploads a browser audio blob for transcription (Whisper/fallback).
+ * Executes a real-time web research directive via Custom Directive.
+ */
+export async function executeDirectiveResearch(query: string): Promise<{ directive_id: string; status: string }> {
+  const res = await fetch(`${BACKEND_URL}/api/directive/research`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ query }),
+  });
+  if (!res.ok) {
+    throw new Error(`Failed to execute directive research: ${res.statusText}`);
+  }
+  return res.json();
+}
+
+/**
+ * Publishes a browser audio blob for transcription (Whisper/fallback).
  * Can optionally supply a mock text prompt for local validation.
  */
 export async function transcribeAudio(audioBlob: Blob, mockPrompt?: string): Promise<string> {

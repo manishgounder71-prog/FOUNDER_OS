@@ -10,3 +10,4 @@ lyzr-automata
 websockets
 jinja2
 python-multipart
+duckduckgo-search

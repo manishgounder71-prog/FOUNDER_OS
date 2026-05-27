@@ -3,7 +3,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from backend.config import settings
 from backend.database import init_db
-from backend.router import voice, workflow, memory
+from backend.router import voice, workflow, memory, directive
 
 app = FastAPI(
     title="FounderOS API",
@@ -24,6 +24,7 @@ app.add_middleware(
 app.include_router(voice.router)
 app.include_router(workflow.router)
 app.include_router(memory.router)
+app.include_router(directive.router)
 
 @app.on_event("startup")
 async def startup_event():

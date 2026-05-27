@@ -152,17 +152,58 @@ def get_contextual_mock_response(role: str, input_data: str) -> str:
                 ]
             },
             "Research Agent": """### Market Research Report: AI Study Copilot
-**Target Market**: High-school & college students facing study fatigue and exam preparation.
 
-**Key Competitors**:
-1. **Quizlet**: Massive user base but basic flashcard features. Recently added basic AI study aids behind a paywall.
-2. **Anki**: High customization and powerful Spaced Repetition System (SRS) but steep learning curve and dated UI.
-3. **PDF.ai / NotebookLM**: Excellent at summarizing uploaded PDFs but lacks active recall testing loops.
+**Target Market**: High-school and college students (ages 14-26) facing study fatigue, passive review habits, and exam preparation pressure.
 
-**Opportunities**:
-- Integration of active recall (spaced repetition flashcards) generated automatically from textbook photos/PDFs.
-- Gamified voice quizzes (using Omi or standard microphone) to practice speaking definitions.
-- Local vector database to store student's course syllabus and lecture notes for contextual study aid.""",
+#### 1. Market Sizing & Growth Projections
+- **TAM**: $740B global EdTech market by 2030 (CAGR 18.2%)
+- **SAM**: $85B AI-powered tutoring and test prep segment
+- **SOM**: $2.1B addressable via US university students (18.6M enrolled, avg $1,200/yr on study tools)
+- **Growth**: AI in education adoption up 47% YoY, voice interfaces in learning growing 32% CAGR
+
+#### 2. Key Competitors
+| Competitor | Strengths | Weaknesses | Market Share |
+| :--- | :--- | :--- | :--- |
+| Quizlet | 60M MAU, brand trust, gamified | Basic flashcards, AI behind paywall | ~35% |
+| Anki | Excellent SRS algorithm, free | Dated UI, steep learning curve | ~15% |
+| NotebookLM | Google-backed, great summarization | No active recall, limited features | ~8% |
+| Chegg | Homework help, textbook solutions | Declining, subscription fatigue | ~12% |
+
+#### 3. Customer Pain Points
+- 60% of study time is passive review (re-reading) with only 10% retention after 24 hours
+- Existing tools lack semantic understanding — can't evaluate if a student truly knows the concept
+- No voice interaction — typing flashcards is slow, speaking is 3x faster
+- Cross-device sync is fragmented between phone, laptop, and tablet
+
+#### 4. Industry Trends
+- Voice-first interfaces in education growing 32% CAGR
+- AI-powered adaptive learning replacing one-size-fits-all study plans
+- Shift from subscription to outcome-based pricing
+- Offline-first architecture becoming critical for equity in education
+
+#### 5. Technology Landscape
+- **STT**: Whisper API ($0.006/min) / Gemini Flash
+- **SRS**: SM-2 algorithm with AI-optimized interval tuning
+- **Vector DB**: Qdrant for personalized student knowledge graphs
+- **Edge compute**: On-device inference for offline voice evaluation
+
+#### 6. Regulatory Landscape
+- FERPA compliance required for US student data
+- COPPA restrictions for users under 13
+- GDPR for European student markets
+- Accessibility requirements (WCAG 2.1 AA)
+
+#### 7. SWOT Analysis
+- **Strengths**: Voice-first differentiation, semantic evaluation engine, Omi wearable integration
+- **Weaknesses**: API cost dependency, new entrant with no brand recognition
+- **Opportunities**: University partnerships, test prep (GRE/GMAT/IELTS), B2B licensing
+- **Threats**: Quizlet adding voice, budget cuts in education, LLM hallucination in grading
+
+#### 8. Market Entry Strategy
+- **Primary Channel**: University Discord servers and Reddit communities
+- **Secondary**: TikTok organic content ("study with me" + voice demonstration)
+- **Timing**: Launch 6-8 weeks before midterm season for maximum adoption
+- **Partnerships**: Campus ambassador programs at top 50 US universities""",
             "Financial Agent": """### Financial & Monetization Blueprint: AI Study Copilot
 **Monetization Strategy**: Freemium subscription + B2B institutional licensing.
 
@@ -198,26 +239,58 @@ def get_contextual_mock_response(role: str, input_data: str) -> str:
             "Reviewer Agent": """# FounderOS Executive Summary: AI Study Copilot GTM Launch
 **Tagline**: "Talk to your syllabus, ace your exams."
 
-## 1. Product Concept
-A mobile-first study assistant that integrates spaced-repetition active recall with a voice-first tutoring engine. Students talk to their flashcards using natural speech, and the AI evaluates their answers semantically.
+## 1. Executive Summary
+A mobile-first study assistant that integrates spaced-repetition active recall with a voice-first tutoring engine. Students talk to their flashcards using natural speech, and the AI evaluates their answers semantically. The global EdTech market is projected to reach $740B by 2030, with AI-powered personalized learning growing at 32% YoY.
 
-## 2. Competitor Matrix
+## 2. Market Opportunity & Industry Trends
+- **TAM**: $740B global EdTech market (2030 projection)
+- **SAM**: $85B AI tutoring and test prep segment
+- **SOM**: $2.1B addressable via US university students (18M enrolled)
+- **Trends**: Voice interfaces in education up 47% YoY, AI-powered adaptive learning adoption accelerating post-pandemic
+
+## 3. Customer Pain Points & Value Proposition
+- **Pain**: Students spend 60% of study time on passive review (re-reading notes) with 10% retention
+- **Pain**: Existing tools (Quizlet, Anki) lack semantic understanding and voice interaction
+- **Solution**: Voice-driven active recall with AI semantic grading — study by speaking, get instant feedback
+
+## 4. Competitive Landscape
 | Competitor | Strengths | Weaknesses | Our Opportunity |
 | :--- | :--- | :--- | :--- |
-| Quizlet | Brand recognition | Simple features | Advanced semantic grading |
-| Anki | Great SRS algorithm | Poor UX / steep learning | Visual, gamified UI |
+| Quizlet | Brand recognition, 60M MAU | Simple features, paywalled AI | Advanced semantic grading |
+| Anki | Great SRS algorithm | Poor UX, steep learning curve | Visual, gamified UI |
 | NotebookLM | Excellent summaries | No active recall cards | Integrated gamification |
+| Khan Academy | Trusted brand, free content | No voice interaction | Voice-first active recall |
 
-## 3. Go-To-Market & Launch Strategy
-- **Phase 1: Micro-community launch**: Seed the app inside university Subreddits (e.g., r/UCLA, r/gatech) and Discord study groups.
-- **Phase 2: TikTok/Shorts organic growth**: Post videos showing "studying by talking to my phone while walking".
-- **Phase 3: High school pilot**: Offer free pro licenses to teachers who onboarding their class.
+## 5. SWOT Analysis
+- **Strengths**: Voice-first differentiation, Omi wearable integration, semantic evaluation engine
+- **Weaknesses**: Brand new entrant, no existing user base, dependency on LLM API costs
+- **Opportunities**: University partnerships, study-abroad test prep (GRE/GMAT/IELTS), B2B licensing to schools
+- **Threats**: Quizlet adding voice features, budget constraints in education, privacy regulations (FERPA/COPPA)
 
-## 4. Technical Roadmap
-- **Week 1**: Setup PDF ingestion + embedding parsing.
-- **Week 2**: Build Spaced Repetition scheduler (SuperMemo SM-2 clone).
-- **Week 3**: Implement Omi webhook voice recording integration for interactive tutoring.
-- **Week 4**: Launch beta on Apple TestFlight."""
+## 6. Technology Stack & Innovation
+- **AI Inference**: Gemini 1.5 Flash + GPT-4o for semantic evaluation
+- **Voice Pipeline**: Omi wearable webhook + Whisper STT
+- **Memory Layer**: Qdrant vector DB for personalized student progress tracking
+- **Spaced Repetition**: SM-2 algorithm with AI-optimized interval tuning
+
+## 7. Risk Assessment & Mitigation
+| Risk | Impact | Probability | Mitigation |
+| :--- | :--- | :--- | :--- |
+| LLM hallucination in grading | High | Medium | Constrain evaluation to rubric-based scoring |
+| Student privacy regulations | High | Medium | FERPA/COPPA compliance from day one, data localization |
+| API cost at scale | Medium | High | Caching common evaluations, local small model fallback |
+
+## 8. Go-To-Market Strategy
+- **Phase 1**: Seed in university Subreddits (r/UCLA, r/gatech) and Discord study groups
+- **Phase 2**: TikTok viral loop — "studying by talking to my phone" challenge
+- **Phase 3**: Free pro licenses for teachers who onboard their class
+- **Pricing**: Freemium ($0) → Student Pro ($9.99/mo) → School Pass ($4.99/student/yr)
+
+## 9. Core Recommendations
+1. Launch beta with 5 partner university classes for real-world validation
+2. Build TikTok organic channel before paid acquisition
+3. Prioritize offline-first mode for low-connectivity students
+4. Establish FERPA compliance documentation before B2B sales"""
         },
         "notes": {
             "Planner Agent": {
@@ -269,23 +342,60 @@ A mobile-first study assistant that integrates spaced-repetition active recall w
             "Reviewer Agent": """# FounderOS Executive Summary: Local-First Secure AI Note Operating System
 **Tagline**: "Your second brain, stored locally, queryable instantly."
 
-## 1. Product Value Proposition
-A markdown-based note-taking app that runs entirely locally, utilizing local SQLite vector search or private cloud encryption. It bridges obsidian-style local text files with a local startup team agent.
+## 1. Executive Summary
+A markdown-based note-taking app that runs entirely locally, utilizing local SQLite vector search or private cloud encryption. Bridges Obsidian-style local text files with AI-powered semantic search and voice capture from Omi wearables. The global note-taking app market is valued at $3.7B growing at 15.6% CAGR.
 
-## 2. Competitive Landscape
-- **Notion**: Cloud locking makes it a dealbreaker for corporate espionage and strict NDAs.
-- **Obsidian**: Excellent text file ownership, but lacks integrated, easy-to-use semantic search.
-- **FounderOS Note**: Keeps files on disk, creates local vector indices, and supports Omi voice reminders.
+## 2. Market Opportunity & Industry Trends
+- **TAM**: $3.7B note-taking software market (2024)
+- **SAM**: $1.2B local-first / privacy-focused segment
+- **SOM**: $180M addressable via knowledge workers (30M US knowledge workers)
+- **Trends**: Privacy regulations driving demand for local-first, AI semantic search replacing folder hierarchies, knowledge management spending up 40% among enterprises
 
-## 3. 3-Phase Launch Strategy
-- **Phase 1: Show HN (Hacker News)**: Launch with a clean GitHub repository, exposing the open source core.
-- **Phase 2: Product Hunt Campaign**: Target technical creators looking for Obsidian alternatives.
-- **Phase 3: Enterprise Team Sync**: Build end-to-end encrypted collaborative rooms.
+## 3. Customer Pain Points & Value Proposition
+- **Pain**: Notion locks data in the cloud with no offline-first architecture
+- **Pain**: Obsidian has powerful plugins but no integrated AI semantic search
+- **Pain**: Evernote is expensive with limited AI features
+- **Solution**: Local markdown files + built-in vector embeddings + encrypted sync — full ownership with modern AI
 
-## 4. Technology Stack
-- **Desktop core**: Electron or Tauri (Rust-based frontend wrapper).
-- **Storage**: Plain Markdown files + SQLite vector DB.
-- **Integrations**: Voice notes pushed from Omi wearables."""
+## 4. Competitive Landscape
+| Competitor | Strengths | Weaknesses | Our Opportunity |
+| :--- | :--- | :--- | :--- |
+| Notion | Excellent editor, databases | Fully cloud, privacy concerns | Local-first + encrypted sync |
+| Obsidian | Local markdown, plugins | No native AI, complex setup | Built-in semantic search |
+| Logseq | Local-first, outliner | Small ecosystem, niche UX | Broader markdown compatibility |
+| Roam Research | Bi-directional links | Expensive, cloud-only | Affordable local alternative |
+
+## 5. SWOT Analysis
+- **Strengths**: True data ownership, local vector search, Omi voice integration, no monthly fee for core
+- **Weaknesses**: Small team vs incumbents, requires technical audience initially
+- **Opportunities**: Enterprise compliance (GDPR/SOC2), developer-first community, encrypted team sync
+- **Threats**: Notion adding offline mode, Obsidian improving AI plugins, Microsoft Loop bundling
+
+## 6. Technology Stack & Innovation
+- **Desktop**: Tauri (Rust) for cross-platform native performance
+- **Storage**: Local Markdown files + SQLite with Qdrant vector embeddings
+- **Search**: Local semantic search via sentence-transformers (on-device)
+- **Sync**: End-to-end encrypted via custom protocol (zero-knowledge)
+- **Voice**: Omi webhook push-to-note with automatic transcription
+
+## 7. Risk Assessment & Mitigation
+| Risk | Impact | Probability | Mitigation |
+| :--- | :--- | :--- | :--- |
+| Syncing complexity across devices | High | Medium | CRDT-based conflict resolution, optional cloud relay |
+| On-device embedding performance | Medium | Medium | WASM-optimized models, GPU acceleration path |
+| Competition from Notion/Obsidian | High | Medium | Focus on privacy-first niche, open-source community |
+
+## 8. Go-To-Market Strategy
+- **Phase 1**: Show HN launch with open-source core repository
+- **Phase 2**: Product Hunt campaign targeting Obsidian and Notion power users
+- **Phase 3**: Enterprise team sync with SOC2 compliance
+- **Pricing**: Core free (local usage), Encrypted Sync $4/mo, Enterprise $12/user/mo
+
+## 9. Core Recommendations
+1. Launch open-source with strong GitHub README and migration guides from Obsidian/Notion
+2. Build keyboard-driven power-user features first (Vim bindings, commands palette)
+3. Publish benchmark comparison showing local search speed vs cloud alternatives
+4. Offer lifetime license for early adopters to build community loyalty"""
         },
         "saas": {
             "Planner Agent": {
@@ -335,22 +445,58 @@ A markdown-based note-taking app that runs entirely locally, utilizing local SQL
 **Tagline**: "Unlock hidden MRR with AI pricing simulation."
 
 ## 1. Executive Summary
-A B2B SaaS dashboard that connects to Stripe/Paddle and uses a custom agent simulator to model the conversion and retention impact of moving from flat subscription rates to hybrid seat/usage plans.
+A B2B SaaS dashboard that connects to Stripe/Paddle and uses a custom agent simulator to model the conversion and retention impact of moving from flat subscription rates to hybrid seat/usage plans. The SaaS analytics market is $15.2B and growing at 18% CAGR, with pricing optimization being the largest untapped sub-segment.
 
-## 2. Competitor Benchmarking
-- **ProfitWell**: Analytical, not prescriptive.
-- **Lago/Togai**: Infrastructure, not optimization engines.
-- **FounderOS Pricing**: Prescriptive billing recommendations based on agent-based simulation modeling.
+## 2. Market Opportunity & Industry Trends
+- **TAM**: $15.2B SaaS analytics and billing infrastructure market
+- **SAM**: $4.8B pricing optimization and revenue management tools
+- **SOM**: $340M addressable via Stripe-connected SaaS startups (120K+ potential customers)
+- **Trends**: Shift from flat-rate to usage-based pricing (60% of new SaaS products), AI-driven dynamic pricing adoption up 3x since 2023
 
-## 3. GTM Launch Channels
-- **Stripe App Marketplace**: Launch as an extension directly in the Stripe dashboard for instant distribution.
-- **Cold Outbound**: Target Series A SaaS startups with high seed counts but low usage tiers.
-- **Calculators**: Build a viral "SaaS Pricing Leaks Calculator" on Twitter/LinkedIn.
+## 3. Customer Pain Points & Value Proposition
+- **Pain**: SaaS companies leave 15-35% MRR on the table with suboptimal pricing tiers
+- **Pain**: A/B testing pricing manually takes weeks and risks revenue loss
+- **Pain**: No tool simulates pricing changes before implementation
+- **Solution**: Monte Carlo simulation engine that models conversion, churn, and revenue impact before any pricing change
 
-## 4. Development Milestones
-- **Step 1**: Sync Stripe API transaction history.
-- **Step 2**: Implement Monte Carlo billing simulations.
-- **Step 3**: Launch recommendations engine dashboard."""
+## 4. Competitive Landscape
+| Competitor | Strengths | Weaknesses | Our Opportunity |
+| :--- | :--- | :--- | :--- |
+| ProfitWell (Paddle) | Free churn analytics, cohort reports | No pricing simulation, human consulting | AI-powered simulation engine |
+| Stripe Billing | Subscription management infrastructure | No optimization recommendations | Prescriptive pricing suggestions |
+| Lago / Togai | Usage-based metering | Developer-heavy implementation | Plug-and-play dashboard |
+| ChartMogul | Subscription analytics | Retrospective only, no simulation | Forward-looking simulation |
+
+## 5. SWOT Analysis
+- **Strengths**: Agent-based simulation model, Stripe native integration, real-time revenue projection
+- **Weaknesses**: Requires Stripe data access, dependent on usage data quality
+- **Opportunities**: Embedded analytics for vertical SaaS, Stripe App Marketplace distribution
+- **Threats**: Stripe building native optimization, ProfitWell expanding into simulation
+
+## 6. Technology Stack & Innovation
+- **Simulation Engine**: Monte Carlo with agent-based customer behavior modeling
+- **Integration**: Stripe API webhooks for real-time transaction sync
+- **AI Layer**: LLM-powered tier recommendation based on usage patterns
+- **Frontend**: Real-time dashboard with what-if scenario sliders
+
+## 7. Risk Assessment & Mitigation
+| Risk | Impact | Probability | Mitigation |
+| :--- | :--- | :--- | :--- |
+| Inaccurate simulation models | High | Medium | Start with transparent confidence intervals |
+| Customer data sensitivity | High | Medium | SOC2 compliance, data anonymization |
+| Stripe API changes | Medium | Low | Abstract Stripe adapter layer |
+
+## 8. Go-To-Market Strategy
+- **Stripe App Marketplace**: Primary distribution channel (instant access to 2M+ businesses)
+- **Content Marketing**: "SaaS Pricing Leaks Calculator" viral tool + benchmarking reports
+- **Cold Outreach**: Series A/B SaaS with $50K+ MRR showing manual pricing
+- **Pricing**: Startup ($49/mo), Growth ($199/mo), Pro Scale ($499/mo)
+
+## 9. Core Recommendations
+1. Launch on Stripe App Marketplace within week 1 for instant distribution
+2. Build free viral calculator tool for lead generation
+3. Partner with SaaS accelerators (Y Combinator, Techstars) for pilot customers
+4. Publish annual SaaS pricing benchmark report as authority content"""
         },
         "shopping": {
             "Planner Agent": {
@@ -415,146 +561,60 @@ A B2B SaaS dashboard that connects to Stripe/Paddle and uses a custom agent simu
 
 ## 1. Product Vision & Problem Statement
 
-The global e-commerce market exceeded **$5.8 trillion in 2023** (Statista) and is growing at 9% YoY. Yet the actual shopping experience is still fundamentally broken:
+The global e-commerce market exceeded $5.8T in 2023 growing at 9%+ YoY, yet shopping remains fragmented across 4+ sites per purchase with 88% cart abandonment.
 
-- Shoppers visit an average of **4.2 different sites** before making a purchase decision.
-- **88% of online carts are abandoned**, often because shoppers lack price confidence.
-- Discount-hunting tools like **Honey** are passive — they only apply codes at checkout, but don't help users *find* or *compare* products across stores.
-- AI personalization in existing tools is either non-existent (Honey) or biased toward partners (Klarna BNPL).
+## 2. Market Opportunity & Industry Trends
+- **TAM**: $5.8T global e-commerce market
+- **SAM**: $420B online fashion and electronics segment (highest affiliate margins)
+- **SOM**: $2.8B addressable via US Gen Z / Millennial mobile shoppers (80M users)
+- **Trends**: Voice commerce growing 24% YoY, AI shopping assistants adoption up 3x, 67% of shoppers want personalized product discovery
 
-**The Opportunity**: Build the first truly *proactive*, voice-first AI shopping agent that acts as an unbiased personal buyer — searching, comparing, styling, and checking out autonomously across the entire open web.
+## 3. Customer Pain Points & Value Proposition
+- **Pain**: Shoppers visit 4.2 sites before purchasing — no unified comparison
+- **Pain**: Existing tools (Honey) only apply codes, don't find deals
+- **Pain**: 88% cart abandonment due to price uncertainty
+- **Solution**: Voice-activated cross-store search + price comparison + automated checkout in 15 seconds
 
-**Real-world Example**: A user says: *"Find me a waterproof hiking boot under $120 with 4+ stars that ships before Friday."* The AI queries 50+ stores simultaneously, surfaces a ranked shortlist with price history charts, and completes purchase with one tap via Apple Pay — in under 15 seconds.
-
----
-
-## 2. Competitive Landscape — Deep Benchmark
-
-| Metric | Honey (PayPal) | Klarna | Shop (Shopify) | **AI Shopping Assistant** |
-| :--- | :--- | :--- | :--- | :--- |
-| **AI Personalization** | ❌ None | ⚠️ Low (BNPL-biased) | ⚠️ Basic recommendations | ✅ Full LLM Style Coach |
-| **Voice / Natural Language Search** | ❌ No | ❌ No | ❌ No | ✅ Yes — Omi voice + text |
-| **Cross-Store Unified Search** | ⚠️ Coupon codes only | ⚠️ Curated partners | ❌ Shopify-only | ✅ Unlimited (scraping + APIs) |
-| **Automated Checkout** | ⚠️ Code auto-apply only | ✅ BNPL checkout | ✅ Shop Pay | ✅ 1-click headless checkout |
-| **Price History Tracking** | ✅ Yes (camelcamelcamel API) | ❌ No | ❌ No | ✅ Yes (90-day history graph) |
-| **Revenue Model Transparency** | ❌ Affiliate (hidden) | ❌ BNPL margin | ❌ Shopify ecosystem lock | ✅ Transparent affiliate + Premium |
-| **Wearable Integration** | ❌ No | ❌ No | ❌ No | ✅ Omi webhook voice triggers |
-
-**Key Takeaway**: Every competitor above solves *one part* of the shopping journey. This product solves *the entire funnel* — from discovery to checkout — using AI as the unified layer.
-
----
-
-## 3. Business Model & Monetization Architecture
-
-### Revenue Stream 1 — Affiliate Commissions (Primary)
-- Partner networks: **Impact Radius**, **ShareASale**, **CJ Affiliate**, **Amazon Associates** (up to 10%), **Rakuten**.
-- Average commission rate across niches: **4–8%** of Gross Merchandise Value (GMV).
-- Example: 10,000 MAU × 9 orders/year × $65 AOV × 6% = **$351,000 annual ARR** from affiliate alone.
-
-### Revenue Stream 2 — Style Advisory Subscription
-| Tier | Price | Features |
-| :--- | :--- | :--- |
-| **Free** | $0/mo | 5 AI searches/day, manual checkout, basic filters |
-| **Shopper Pro** | $4.99/mo | Unlimited voice searches, automated checkout, price-drop alerts |
-| **Style Club** | $12.99/mo | Personal AI stylist, curated weekly drops, size profile memory, VIP brand deals |
-
-### Unit Economics Snapshot (at 10,000 MAU)
-| Metric | Value |
-| :--- | :--- |
-| Blended ARPU (affiliate + sub) | $2.93/mo |
-| Monthly Revenue | $29,300 |
-| Operating Costs | $785/mo |
-| **Net Margin** | **~97%** |
-| CAC (organic TikTok) | $8.50 |
-| LTV (3-year) | $105.48 |
-| **LTV:CAC Ratio** | **12.4x** |
-
----
-
-## 4. Go-To-Market — 4-Week Precision Launch Playbook
-
-### Week 1: Waitlist & Anticipation Engine
-- Launch a **high-conversion landing page** with a live "How much could you save?" calculator (uses real Amazon/Google Shopping API data).
-- Run a **referral waitlist** (SparkLoop or Viral Loops): each referral unlocks 3 months of Shopper Pro free.
-- Target **r/frugal**, **r/deals**, **r/malefashionadvice** with organic posts showing real savings screenshots.
-- **Goal**: 2,000+ waitlist sign-ups.
-
-### Week 2: Viral TikTok & Shorts Blitz
-- Post 3 videos per day using the hook: *"POV: Your AI bought you this for $38 less than Amazon"*.
-- Partner with **3 micro-influencers** (50k–200k followers) in fashion, tech, and personal finance niches. Cost: $150–300 per post.
-- Organic benchmark: Honey's original Product Hunt video got 250k organic views in 48 hours with a similar format in 2012.
-- **Goal**: 100k+ TikTok views, 500+ app installs on Day 1.
-
-### Week 3: Micro-Influencer Seed Round
-- Onboard **15 fashion/lifestyle creators** with $100 in-app shopping credits each.
-- Create an **affiliate referral program** for influencers: they earn 2% of every purchase their followers make through their referral link.
-- Submit to **Product Hunt** for scheduling (target a Tuesday or Wednesday launch for maximum upvotes).
-- **Goal**: 1,500+ total installs, 300+ MAU engaged.
-
-### Week 4: App Store & Browser Extension Launch
-- Submit to Apple App Store + Google Play Store with ASO-optimized descriptions targeting keywords: "price comparison app", "AI shopping", "discount finder".
-- Launch a **Chrome/Firefox/Safari extension** that injects a floating AI assistant button on any e-commerce product page.
-- Pitch to **TechCrunch**, **The Verge**, and **Wired** under the angle: *"The app killing Honey by actually using AI"*.
-- **Goal**: 5,000+ total downloads, App Store Editorial consideration.
-
----
-
-## 5. Technical Architecture
-
-```
-User Input (Voice via Omi / Text)
-    │
-    ▼
-[NLP Intent Parser] ← LLM (Gemini 1.5 Flash / GPT-4o)
-    │  Parses: product type, budget, style, urgency
-    │
-    ▼
-[Multi-Store Aggregator Engine]
-    ├── Shopify Storefront API (10,000+ stores)
-    ├── Amazon Product Advertising API
-    ├── Google Shopping API
-    ├── Headless browser scraping (Playwright + residential proxies)
-    │
-    ▼
-[Ranking & Personalization Engine]
-    ├── Vector similarity search — Qdrant (user style profile vs. products)
-    ├── Price history scoring (90-day trend via camelcamelcamel API)
-    ├── Review sentiment analysis (LLM-summarized)
-    │
-    ▼
-[Checkout Automation]
-    ├── Apple Pay / Google Pay / Stripe Link
-    ├── Autofill RPA for non-standard checkouts (Playwright)
-    │
-    ▼
-[Memory Layer — Qdrant]
-    └── Stores: size profile, style history, brand preferences, budget signals
-```
-
----
-
-## 6. Reality Check — Honest Risk Assessment
-
-| Risk | Severity | Probability | Mitigation |
+## 4. Competitive Landscape
+| Competitor | Strengths | Weaknesses | Our Opportunity |
 | :--- | :--- | :--- | :--- |
-| **Amazon API blocking** | 🔴 High | 🔴 Certain | Use Amazon Product Advertising API (official); limit scraping to non-Amazon stores. |
-| **Affiliate link stripping by ad blockers** | 🟠 Medium | 🟡 ~25% of users | Use server-side affiliate redirect (instead of client-side JS injection). |
-| **Headless checkout failures** | 🟠 Medium | 🟡 15–30% fail rate | Fallback to redirect-to-store for complex checkouts. Prioritize Apple Pay / Google Pay. |
-| **Merchant T&C violations** | 🔴 High | 🟡 Moderate | Legal review of terms for top 50 target merchants. Focus on API-first integrations. |
-| **User trust & card data fears** | 🟠 Medium | 🟠 High initially | Never store card data. Route 100% through Apple/Google/Stripe tokenization. SOC 2 compliance roadmap. |
-| **LLM hallucination on product details** | 🟡 Low | 🟠 Moderate | Use structured API data as ground truth; LLM only writes summaries/recommendations, not facts. |
+| Honey (PayPal) | 17M users, massive merchant network | No AI, desktop-only extension | Mobile voice-first with LLM advisory |
+| Klarna | BNPL integration, curated collections | Biased to partners, no cross-store | Unbiased affiliate routing |
+| Shop (Shopify) | Order tracking, Shop Pay | Shopify-restricted | Universal store aggregation |
+| Capital One Shopping | Price comparison, coupon auto-apply | Credit card ecosystem lock | Independent, no card required |
 
-**Bottom Line**: This is a high-margin, high-virality opportunity in a proven market. The core risks are solvable with smart API choices and a phased rollout. The winning move is to launch with a focused niche (e.g., fashion + home goods) before expanding to all retail categories.
+## 5. SWOT Analysis
+- **Strengths**: Voice-first UX, cross-aggregator engine, Omi wearable integration, transparent pricing
+- **Weaknesses**: Requires merchant partnerships, headless checkout complexity, brand new entrant
+- **Opportunities**: TikTok virality potential, affiliate revenue model, browser extension distribution
+- **Threats**: Amazon blocking scraping, ad blockers stripping affiliate links, incumbents adding voice
 
----
+## 6. Technology Stack & Innovation
+- **Search Engine**: Multi-store aggregator (Shopify API, Amazon PA API, Google Shopping, headless browser)
+- **AI Layer**: LLM intent parsing + personalized ranking + review sentiment analysis
+- **Checkout**: Headless automation via Playwright + Apple Pay / Google Pay
+- **Memory**: Qdrant vector DB for user style profiles, size preferences, purchase history
 
-## 7. 90-Day Post-Launch Milestones
+## 7. Risk Assessment & Mitigation
+| Risk | Impact | Probability | Mitigation |
+| :--- | :--- | :--- | :--- |
+| Amazon API blocking | High | Certain | Use Product Advertising API, limit headless scraping |
+| Affiliate link stripping | Medium | 25% of users | Server-side affiliate redirect instead of JS injection |
+| Headless checkout failure | Medium | 15-30% | Fallback to redirect-to-store, prioritize Apple Pay |
+| Merchant T&C violations | High | Moderate | Legal review for top 50 merchants, API-first integrations |
 
-| Milestone | Target | KPI |
-| :--- | :--- | :--- |
-| End of Month 1 | 5,000 MAU | D7 Retention ≥ 35% |
-| End of Month 2 | 15,000 MAU | Avg. session ≥ 3 searches |
-| End of Month 3 | 35,000 MAU | Affiliate GMV ≥ $50,000 |"""
+## 8. Go-To-Market Strategy
+- **Phase 1**: Waitlist landing page with savings calculator, target r/frugal, r/deals
+- **Phase 2**: TikTok viral blitz — "POV: Your AI bought this for $38 less" format
+- **Phase 3**: Micro-influencer seed program (15 creators, $100 shopping credits each)
+- **Phase 4**: App Store + Chrome extension launch, pitch TechCrunch/Wired
+- **Pricing**: Free (5 searches/day) → Shopper Pro ($4.99/mo) → Style Club ($12.99/mo)
+
+## 9. Core Recommendations
+1. Launch with fashion + home goods niche before expanding to all retail
+2. Build browser extension before mobile app for faster iteration
+3. Partner with 10 micro-influencers for Day 1 TikTok presence
+4. Ensure server-side affiliate redirect to protect revenue from ad blockers"""
         },
         "generic": {
             "Planner Agent": {
@@ -603,19 +663,58 @@ User Input (Voice via Omi / Text)
             "Reviewer Agent": f"""# FounderOS Executive Summary: {startup_name} Launch Strategy
 **Tagline**: "Operating at the speed of thought."
 
-## 1. Product Vision
-An autonomous workflow tool built to execute the concept of '{startup_name}' using a team of AI agents and voice-first pipelines.
+## 1. Executive Summary
+An autonomous AI-powered platform built to execute '{startup_name}' using a team of specialized agents, voice-first pipelines, and persistent vector memory. The AI-augmented software market is projected at $1.5T by 2030.
 
-## 2. GTM Launch Channels
-- **Product Hunt & IndieHackers**: To build early developer adoption.
-- **X (Twitter) Build in Public**: Share design screenshots, code snippets, and Omi integration demos to gain organic virality.
-- **Waitlist & Referral Loop**: Offer free credits to users who refer others to sign up.
+## 2. Market Opportunity & Industry Trends
+- **TAM**: $1.5T AI-augmented software market (2030)
+- **SAM**: Growing at 35% CAGR for AI agent platforms
+- **SOM**: Addressable via early adopter developers and SMBs
+- **Trends**: Multi-agent orchestration, voice-first interfaces, local vector databases replacing cloud-first architectures
 
-## 3. Product Architecture
-- **Voice Intake**: Omi webhooks.
-- **Vector Memory**: Qdrant Local.
-- **Agent Engines**: Lyzr Multi-agent orchestration.
-- **UI System**: Futuristic Glassmorphism dashboard."""
+## 3. Customer Pain Points & Value Proposition
+- **Pain**: Building AI-powered features requires complex orchestration across multiple services
+- **Pain**: Existing tools lack persistent memory and voice integration
+- **Solution**: Pre-built agent pipeline with voice intake, semantic memory, and automated execution
+
+## 4. Competitive Landscape
+| Competitor | Strengths | Weaknesses | Our Opportunity |
+| :--- | :--- | :--- | :--- |
+| LangChain | Broad LLM framework | No voice, no persistent memory | Voice-first + built-in memory |
+| Zapier AI | Large integration library | No deep agent orchestration | Custom agent pipelines |
+| AutoGPT | Autonomous agents | Unreliable, no persistence | Structured with Qdrant memory |
+| Relevance AI | Agent building platform | Expensive, cloud-dependent | Local-first + affordable |
+
+## 5. SWOT Analysis
+- **Strengths**: Voice-first architecture, Omi wearable integration, persistent Qdrant memory
+- **Weaknesses**: Early stage, smaller ecosystem, requires API keys
+- **Opportunities**: Developer-first community, open-source adoption, vertical-specific agent templates
+- **Threats**: OpenAI/Google building competing products, open-source alternatives
+
+## 6. Technology Stack & Innovation
+- **Voice Intake**: Omi webhooks + Whisper STT
+- **Agent Engine**: Lyzr multi-agent orchestration with fallback chain
+- **Memory**: Qdrant vector database with semantic search across 6 collections
+- **UI**: Next.js 16 with real-time SSE streaming and glassmorphism design
+
+## 7. Risk Assessment & Mitigation
+| Risk | Impact | Probability | Mitigation |
+| :--- | :--- | :--- | :--- |
+| API key dependency | High | Medium | Support multiple LLM providers with graceful fallback |
+| LLM hallucination | Medium | Medium | Use structured outputs, limit LLM to creative tasks |
+| User adoption | High | Medium | Open-source core, community-driven growth |
+
+## 8. Go-To-Market Strategy
+- **Product Hunt & IndieHackers**: Launch to early adopter developer community
+- **X (Twitter) Build in Public**: Share architecture decisions, Omi demos, and agent pipeline designs
+- **Waitlist & Referral Loop**: Offer free credits for referrals
+- **Pricing**: Developer (Free), Business ($29/mo), Enterprise (Custom)
+
+## 9. Core Recommendations
+1. Open-source core agent framework to build community trust
+2. Publish benchmark comparisons showing speed vs competing platforms
+3. Create starter templates for top 5 use cases (SaaS, EdTech, E-commerce, Health, Finance)
+4. Establish partnerships with Omi wearable and Qdrant for cross-promotion"""
         }
     }
     
