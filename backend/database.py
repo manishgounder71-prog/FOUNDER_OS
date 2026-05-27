@@ -175,6 +175,33 @@ def search_memory(collection: str, query: str, limit: int = 5) -> List[Dict[str,
             "score": hit.score,
             "payload": hit.payload
         })
+        
+    # If no semantic matches were found (e.g. mock embeddings are active or threshold was too high),
+    # fall back to a lexical/keyword substring search to ensure usability.
+    if not results:
+        all_records = get_all_memories(collection, limit=100)
+        query_words = [w.lower() for w in query.split() if len(w) > 2]
+        if not query_words:
+            query_words = [query.lower()]
+            
+        scored_results = []
+        for rec in all_records:
+            payload = rec.get("payload", {})
+            text = (payload.get("text", "") or "").lower()
+            
+            # Count matching keywords
+            matches = sum(1 for word in query_words if word in text)
+            if matches > 0:
+                score = matches / len(query_words)
+                scored_results.append({
+                    "id": rec.get("id"),
+                    "score": score,
+                    "payload": payload
+                })
+                
+        scored_results.sort(key=lambda x: x["score"], reverse=True)
+        results = scored_results[:limit]
+        
     return results
 
 def get_all_memories(collection: str, limit: int = 100) -> List[Dict[str, Any]]:
