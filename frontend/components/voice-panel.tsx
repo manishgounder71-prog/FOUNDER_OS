@@ -5,6 +5,13 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Mic, MicOff, Radio, Play, AlertCircle, Zap, Search } from "lucide-react";
 import { transcribeAudio, simulateOmiWebhook } from "@/lib/api";
 
+interface VoicePanelProps {
+  onTriggerWorkflow: (workflowId: string, promptText: string) => void;
+  onResearchQuery: (query: string) => void;
+  isExecuting: boolean;
+  isResearching: boolean;
+}
+
 const PRESET_PROMPTS = [
   "Create a launch strategy for an AI shopping app.",
   "Create a launch strategy for an AI study app.",
