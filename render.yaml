@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: founder-os-backend
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    plan: free
+    autoDeploy: true
+    envVars:
+      - key: OPENAI_API_KEY
+        sync: false          # Set this secret in the Render dashboard
+      - key: GEMINI_API_KEY
+        sync: false          # Set this secret in the Render dashboard
+      - key: QDRANT_PATH
+        value: ./qdrant_db
+      - key: QDRANT_URL
+        sync: false          # Optional: Qdrant Cloud URL
+      - key: QDRANT_API_KEY
+        sync: false          # Optional: Qdrant Cloud API key
+      - key: HOST
+        value: 0.0.0.0
+      - key: PORT
+        value: 10000         # Render's default web service port
