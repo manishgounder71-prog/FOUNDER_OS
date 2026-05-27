@@ -77,7 +77,15 @@ async def stream_workflow(workflow_id: str):
                 yield f"data: {json.dumps(err_payload)}\n\n"
                 break
                 
-    return StreamingResponse(event_generator(), media_type="text/event-stream")
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "X-Accel-Buffering": "no",
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive"
+        }
+    )
 
 @router.get("/status/{workflow_id}")
 async def get_workflow_status(workflow_id: str):

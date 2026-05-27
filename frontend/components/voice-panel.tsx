@@ -85,6 +85,10 @@ export default function VoicePanel({ onTriggerWorkflow, isExecuting }: VoicePane
   const handleOmiPush = async () => {
     setError(null);
     const textToPush = customPrompt.trim() || selectedPreset;
+    if (!textToPush.trim()) {
+      setError("Please select a preset or type a custom transcript.");
+      return;
+    }
     setStatus(`Simulating Omi push: "${textToPush}"`);
     
     try {
@@ -181,6 +185,11 @@ export default function VoicePanel({ onTriggerWorkflow, isExecuting }: VoicePane
               }}
               className="bg-black/40 border border-gray-800 rounded-lg p-1.5 text-[11px] text-gray-300 outline-none focus:border-cyan-500/50"
             >
+              {selectedPreset === "" && (
+                <option value="" disabled>
+                  Custom Transcript Active...
+                </option>
+              )}
               {PRESET_PROMPTS.map((prompt, idx) => (
                 <option key={idx} value={prompt}>
                   {prompt.length > 45 ? `${prompt.substring(0, 42)}...` : prompt}
@@ -196,7 +205,10 @@ export default function VoicePanel({ onTriggerWorkflow, isExecuting }: VoicePane
               type="text"
               placeholder="e.g. Research competitor note-taking apps..."
               value={customPrompt}
-              onChange={(e) => setCustomPrompt(e.target.value)}
+              onChange={(e) => {
+                setCustomPrompt(e.target.value);
+                setSelectedPreset("");
+              }}
               className="glass-input rounded-lg p-1.5 text-[11px] outline-none"
             />
           </div>

@@ -94,6 +94,27 @@ def get_contextual_mock_response(role: str, input_data: str) -> str:
     """Provides high-quality pre-coded startup analysis outputs if no API keys are configured."""
     normalized_input = input_data.lower()
     
+    # Strip any planner and researcher sections to prevent recursive dumps of raw tasks and competitor outputs
+    clean_input = input_data
+    if "=== Subtasks Configured by Planner ===" in clean_input:
+        clean_input = clean_input.split("=== Subtasks Configured by Planner ===")[0].strip()
+    if "=== Competitive Analysis from Researcher ===" in clean_input:
+        clean_input = clean_input.split("=== Competitive Analysis from Researcher ===")[0].strip()
+        
+    startup_name = clean_input.strip()
+    # Extract clean startup name/idea from clean_input to avoid recursive dump in generic mock
+    # Check for "Founder Startup Idea:" first because it is more specific than "Startup Idea:"
+    if "Founder Startup Idea:" in clean_input:
+        for line in clean_input.split("\n"):
+            if "Founder Startup Idea:" in line:
+                startup_name = line.split("Founder Startup Idea:", 1)[1].strip()
+                break
+    elif "Startup Idea:" in clean_input:
+        for line in clean_input.split("\n"):
+            if "Startup Idea:" in line:
+                startup_name = line.split("Startup Idea:", 1)[1].strip()
+                break
+
     # Identify startup niche
     niche = "generic"
     if "study" in normalized_input or "education" in normalized_input or "learn" in normalized_input:
@@ -245,7 +266,7 @@ A B2B SaaS dashboard that connects to Stripe/Paddle and uses a custom agent simu
                     {"id": "t4", "name": "Index Records in Qdrant Collections", "status": "pending", "assignee": "Memory"}
                 ]
             },
-            "Research Agent": f"""### Market Research Report: {input_data}
+            "Research Agent": f"""### Market Research Report: {startup_name}
 **Niche**: AI-augmented software product.
 
 **Competitors**:
@@ -256,12 +277,12 @@ A B2B SaaS dashboard that connects to Stripe/Paddle and uses a custom agent simu
 - High-efficiency agent pipelines to reduce inference costs.
 - Integrations with wearable devices (Omi) for continuous context gather.
 - Contextual personalization through persistent Qdrant memory.""",
-            "Memory Agent": f"Saved research findings and product specs for '{input_data}' into Qdrant vector memory databases.",
-            "Reviewer Agent": f"""# FounderOS Executive Summary: {input_data} Launch Strategy
+            "Memory Agent": f"Saved research findings and product specs for '{startup_name}' into Qdrant vector memory databases.",
+            "Reviewer Agent": f"""# FounderOS Executive Summary: {startup_name} Launch Strategy
 **Tagline**: "Operating at the speed of thought."
 
 ## 1. Product Vision
-An autonomous workflow tool built to execute the concept of '{input_data}' using a team of AI agents and voice-first pipelines.
+An autonomous workflow tool built to execute the concept of '{startup_name}' using a team of AI agents and voice-first pipelines.
 
 ## 2. GTM Launch Channels
 - **Product Hunt & IndieHackers**: To build early developer adoption.
