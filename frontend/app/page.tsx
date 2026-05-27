@@ -8,6 +8,9 @@ import MemoryTimeline from "@/components/memory-timeline";
 import SemanticSearch from "@/components/semantic-search";
 import InsightsViewer from "@/components/insights-viewer";
 import TaskBoard from "@/components/task-board";
+import HudMetrics from "@/components/hud-metrics";
+import AutonomousPlanningOverlay from "@/components/autonomous-planning-overlay";
+import BrainGraph from "@/components/brain-graph";
 import { BACKEND_URL, getTimeline, TimelineItem, Task } from "@/lib/api";
 import { Radio, Database, Cpu, Shield } from "lucide-react";
 import confetti from "canvas-confetti";
@@ -29,6 +32,11 @@ export default function Home() {
   // Timeline states
   const [timelineItems, setTimelineItems] = useState<TimelineItem[]>([]);
   const [isTimelineLoading, setIsTimelineLoading] = useState(false);
+
+  // Autonomous Planning Overlay states
+  const [overlayVisible, setOverlayVisible] = useState(false);
+  const [overlayPrompt, setOverlayPrompt] = useState("");
+  const [overlayTasks, setOverlayTasks] = useState<{ id: string; name: string; assignee: string }[]>([]);
 
   // Load timeline items on mount
   useEffect(() => {
@@ -62,6 +70,11 @@ export default function Home() {
     setLogs([]);
     setTasks([]);
     setFinalOutput("");
+
+    // Show autonomous planning overlay
+    setOverlayPrompt(promptText);
+    setOverlayTasks([]);
+    setOverlayVisible(true);
 
     // Initialize EventSource for SSE streaming
     const eventSource = new EventSource(`${BACKEND_URL}/api/workflow/stream/${workflowId}`);
@@ -112,6 +125,14 @@ export default function Home() {
 
           case "tasks_initialized":
             setTasks(data.tasks);
+            // Feed tasks into the overlay so it can animate them before dismissing
+            setOverlayTasks(
+              (data.tasks as Task[]).map((t) => ({
+                id: t.id,
+                name: t.name,
+                assignee: t.assignee,
+              }))
+            );
             setLogs((prev) => [
               ...prev,
               {
@@ -277,6 +298,14 @@ export default function Home() {
 
   return (
     <main className="min-h-screen bg-[#030303] text-gray-100 flex flex-col relative">
+      {/* Autonomous Planning Overlay (full-screen, z-50) */}
+      <AutonomousPlanningOverlay
+        isVisible={overlayVisible}
+        prompt={overlayPrompt}
+        tasks={overlayTasks}
+        onComplete={() => setOverlayVisible(false)}
+      />
+
       {/* Background ambient neon glow filters */}
       <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-cyan-500/5 rounded-full blur-[140px] pointer-events-none" />
       <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-purple-500/5 rounded-full blur-[140px] pointer-events-none" />
@@ -312,6 +341,15 @@ export default function Home() {
           </div>
         </div>
       </header>
+
+      {/* HUD Metrics Sub-header Bar */}
+      <HudMetrics
+        isExecuting={isExecuting}
+        activeAgent={activeAgent}
+        tasks={tasks}
+        timelineCount={timelineItems.length}
+        status={status}
+      />
 
       {/* Main Grid Layout Workspace */}
       <div className="flex-1 p-6 grid grid-cols-1 xl:grid-cols-4 gap-6 z-10 max-w-[1700px] w-full mx-auto">
@@ -358,6 +396,12 @@ export default function Home() {
           />
         </div>
       </div>
+
+      {/* Floating Startup Brain Knowledge Graph */}
+      <BrainGraph
+        items={timelineItems}
+        onSelectItem={handleSelectTimelineItem}
+      />
     </main>
   );
 }

@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useState, useRef } from "react";
-import { Mic, MicOff, Radio, Play, AlertCircle } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Mic, MicOff, Radio, Play, AlertCircle, Zap } from "lucide-react";
 import { transcribeAudio, simulateOmiWebhook } from "@/lib/api";
 
 interface VoicePanelProps {
@@ -10,23 +11,33 @@ interface VoicePanelProps {
 }
 
 const PRESET_PROMPTS = [
+  "Create a launch strategy for an AI shopping app.",
   "Create a launch strategy for an AI study app.",
   "Research competitors for an AI note-taking app.",
   "Find market opportunities for a B2B SaaS pricing optimization dashboard.",
-  "Summarize today's startup tasks."
+];
+
+const STATUS_PHASES = [
+  { key: "standby",      label: "STANDBY — Awaiting Command",         color: "text-gray-500" },
+  { key: "listening",    label: "LISTENING — Voice Input Active",       color: "text-cyan-400" },
+  { key: "transcribing", label: "TRANSCRIBING — Whisper Processing...", color: "text-amber-400" },
+  { key: "deploying",    label: "DEPLOYING — Agent Workforce Online",   color: "text-purple-400" },
+  { key: "running",      label: "EXECUTING — Agents Running...",        color: "text-green-400" },
 ];
 
 export default function VoicePanel({ onTriggerWorkflow, isExecuting }: VoicePanelProps) {
   const [isRecording, setIsRecording] = useState(false);
-  const [status, setStatus] = useState<string>("Ready to receive commands...");
+  const [phase, setPhase] = useState<string>("standby");
+  const [statusMsg, setStatusMsg] = useState("Ready to receive commands...");
   const [selectedPreset, setSelectedPreset] = useState(PRESET_PROMPTS[0]);
   const [customPrompt, setCustomPrompt] = useState("");
   const [error, setError] = useState<string | null>(null);
-  
+
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
 
-  // Start browser audio recording
+  const currentPhase = STATUS_PHASES.find(p => p.key === phase) ?? STATUS_PHASES[0];
+
   const startRecording = async () => {
     setError(null);
     audioChunksRef.current = [];
@@ -36,44 +47,37 @@ export default function VoicePanel({ onTriggerWorkflow, isExecuting }: VoicePane
       mediaRecorderRef.current = mediaRecorder;
 
       mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          audioChunksRef.current.push(event.data);
-        }
+        if (event.data.size > 0) audioChunksRef.current.push(event.data);
       };
 
       mediaRecorder.onstop = async () => {
         const audioBlob = new Blob(audioChunksRef.current, { type: "audio/wav" });
-        setStatus("Transcribing audio via Whisper...");
-        
+        setPhase("transcribing");
+        setStatusMsg("Transcribing via Whisper API...");
         try {
-          // Since browser may record empty/noisy audio on VM or Windows servers without mic,
-          // we send a helpful test fallback if transcription fails, or user can use Omi simulation.
           const transcript = await transcribeAudio(audioBlob);
-          setStatus(`Transcribed: "${transcript}"`);
-          setError(null);
-          
-          // Trigger the workflow
-          setStatus("Launching Multi-Agent team...");
+          setStatusMsg(`Transcribed: "${transcript}"`);
+          setPhase("deploying");
           const res = await simulateOmiWebhook(transcript);
           onTriggerWorkflow(res, transcript);
-        } catch (err: any) {
-          setError("Transcription failed. Try using Omi Webhook Simulator.");
-          setStatus("Error during transcription.");
+          setPhase("running");
+        } catch {
+          setError("Transcription failed. Use the Omi simulator below.");
+          setPhase("standby");
+          setStatusMsg("Ready to receive commands...");
         }
-        
-        // Stop all audio tracks to release microphone
-        stream.getTracks().forEach(track => track.stop());
+        stream.getTracks().forEach(t => t.stop());
       };
 
       mediaRecorder.start();
       setIsRecording(true);
-      setStatus("Listening to voice input...");
-    } catch (err: any) {
+      setPhase("listening");
+      setStatusMsg("Listening to voice input...");
+    } catch {
       setError("Microphone access denied or unavailable.");
     }
   };
 
-  // Stop browser audio recording
   const stopRecording = () => {
     if (mediaRecorderRef.current && isRecording) {
       mediaRecorderRef.current.stop();
@@ -81,148 +85,191 @@ export default function VoicePanel({ onTriggerWorkflow, isExecuting }: VoicePane
     }
   };
 
-  // Triggers Omi simulated webhook
   const handleOmiPush = async () => {
     setError(null);
     const textToPush = customPrompt.trim() || selectedPreset;
-    if (!textToPush.trim()) {
-      setError("Please select a preset or type a custom transcript.");
-      return;
-    }
-    setStatus(`Simulating Omi push: "${textToPush}"`);
-    
+    if (!textToPush.trim()) { setError("Please select a preset or write a custom prompt."); return; }
+    setPhase("deploying");
+    setStatusMsg(`Dispatching: "${textToPush}"`);
     try {
       const workflowId = await simulateOmiWebhook(textToPush);
-      setStatus("Omi push webhook success. Streaming workflow...");
+      setPhase("running");
+      setStatusMsg("Workforce online. Streaming...");
       onTriggerWorkflow(workflowId, textToPush);
-    } catch (err: any) {
+    } catch {
       setError("Omi webhook simulation failed.");
-      setStatus("Failed to trigger webhook.");
+      setPhase("standby");
+      setStatusMsg("Ready to receive commands...");
     }
   };
 
+  // Ring border style based on state
+  const ringColor = isRecording
+    ? "border-cyan-400 shadow-[0_0_30px_rgba(0,212,255,0.4)]"
+    : isExecuting
+    ? "border-purple-500 shadow-[0_0_30px_rgba(168,85,247,0.3)] animate-pulse"
+    : "border-gray-800";
+
   return (
-    <div className="glass-panel rounded-2xl p-6 relative overflow-hidden flex flex-col h-full justify-between">
-      {/* Background glow orb */}
-      <div className="absolute top-0 right-0 w-24 h-24 bg-cyan-500/10 rounded-full blur-2xl pointer-events-none" />
-      
+    <motion.div
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+      className="glass-panel rounded-2xl p-5 relative overflow-hidden flex flex-col h-full justify-between hud-border"
+    >
+      {/* Background glow orbs */}
+      <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-500/6 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute bottom-0 left-0 w-24 h-24 bg-purple-500/5 rounded-full blur-2xl pointer-events-none" />
+
       {/* Header */}
       <div>
-        <div className="flex items-center gap-2 mb-2">
-          <Radio className="w-5 h-5 text-cyan-400 animate-pulse" />
-          <h2 className="text-lg font-semibold tracking-wide text-gray-100 uppercase">Voice Intake Controller</h2>
+        <div className="flex items-center gap-2 mb-1">
+          <motion.div animate={{ rotate: isRecording ? [0, 10, -10, 0] : 0 }} transition={{ repeat: Infinity, duration: 1.5 }}>
+            <Radio className="w-4 h-4 text-cyan-400" />
+          </motion.div>
+          <h2 className="text-sm font-bold tracking-widest text-gray-100 uppercase font-mono">Voice Command Center</h2>
         </div>
-        <p className="text-xs text-gray-400">Pushes transcriptions via Omi wearable API integration.</p>
+        <p className="text-[10px] text-gray-500 tracking-wide">Omi wearable integration — voice-first AI dispatch</p>
       </div>
 
-      {/* Visual wave/mic action area */}
-      <div className="my-2.5 flex flex-col items-center justify-center">
-        {isRecording ? (
-          <div className="flex items-center justify-center gap-1.5 h-14 mb-3">
-            {[...Array(7)].map((_, i) => (
-              <span key={i} className="wave-bar w-1.5 bg-cyan-400 rounded-full" style={{ height: "30px" }} />
-            ))}
-          </div>
-        ) : (
-          <div className={`w-14 h-14 rounded-full flex items-center justify-center bg-gray-900 border transition-all duration-300 ${isExecuting ? 'border-purple-500/40 animate-pulse' : 'border-gray-800'}`}>
-            {isExecuting ? (
-              <Radio className="w-5.5 h-5.5 text-purple-400" />
-            ) : (
-              <Mic className="w-5.5 h-5.5 text-gray-400" />
-            )}
-          </div>
-        )}
+      {/* Central mic visualizer */}
+      <div className="flex flex-col items-center justify-center py-2 gap-3">
+        {/* Outer ring with state */}
+        <div className="relative flex items-center justify-center">
+          {/* Animated pulse rings when recording */}
+          {isRecording && (
+            <>
+              <div className="absolute w-24 h-24 rounded-full border border-cyan-400/30 neural-ring" />
+              <div className="absolute w-24 h-24 rounded-full border border-cyan-400/20 neural-ring" style={{ animationDelay: "0.6s" }} />
+              <div className="absolute w-24 h-24 rounded-full border border-cyan-400/10 neural-ring" style={{ animationDelay: "1.2s" }} />
+            </>
+          )}
 
-        <div className="text-center mt-1.5">
-          <p className={`text-xs font-mono ${isRecording ? 'text-cyan-400 animate-pulse' : 'text-gray-300'}`}>
-            {status}
-          </p>
-          {error && (
-            <div className="flex items-center gap-1 text-red-400 text-[10px] justify-center mt-1">
-              <AlertCircle className="w-3 h-3" />
-              <span>{error}</span>
+          {/* Waveform or static mic */}
+          {isRecording ? (
+            <div className={`w-20 h-20 rounded-full border-2 ${ringColor} flex items-center justify-center bg-black/50 transition-all duration-300`}>
+              <div className="flex items-end gap-0.5 h-8">
+                {[...Array(10)].map((_, i) => (
+                  <span
+                    key={i}
+                    className="wave-bar rounded-full"
+                    style={{
+                      width: "3px",
+                      height: "32px",
+                      background: `rgba(0, 212, 255, ${0.4 + i * 0.06})`,
+                    }}
+                  />
+                ))}
+              </div>
             </div>
+          ) : (
+            <motion.div
+              whileHover={{ scale: 1.05 }}
+              className={`w-20 h-20 rounded-full border-2 ${ringColor} flex items-center justify-center bg-black/50 transition-all duration-500`}
+            >
+              {isExecuting ? (
+                <div className="relative">
+                  <Zap className="w-7 h-7 text-purple-400" />
+                  <div className="absolute inset-0 w-7 h-7 bg-purple-400/20 rounded-full blur-md" />
+                </div>
+              ) : (
+                <Mic className="w-7 h-7 text-gray-500" />
+              )}
+            </motion.div>
           )}
         </div>
 
-        {/* Microphone toggle */}
-        <button
+        {/* Phase status text */}
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={phase}
+            initial={{ opacity: 0, y: 4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            className="text-center"
+          >
+            <p className={`text-[10px] font-mono font-bold tracking-widest uppercase ${currentPhase.color}`}>
+              {currentPhase.label}
+            </p>
+            <p className="text-[9px] text-gray-600 mt-0.5 font-mono max-w-[180px] truncate">
+              {statusMsg}
+            </p>
+          </motion.div>
+        </AnimatePresence>
+
+        {error && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="flex items-center gap-1.5 text-red-400 text-[10px] bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-1.5"
+          >
+            <AlertCircle className="w-3 h-3 flex-shrink-0" />
+            <span className="font-mono">{error}</span>
+          </motion.div>
+        )}
+
+        {/* Mic button */}
+        <motion.button
           onClick={isRecording ? stopRecording : startRecording}
           disabled={isExecuting}
-          className={`mt-2.5 px-5 py-1.5 rounded-full font-semibold text-[10px] tracking-wider uppercase transition-all duration-300 flex items-center gap-2 ${
-            isRecording 
-              ? "bg-red-500/20 hover:bg-red-500/30 border border-red-500/40 text-red-200" 
-              : "bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 text-cyan-300 disabled:opacity-50"
+          whileHover={{ scale: 1.04 }}
+          whileTap={{ scale: 0.96 }}
+          className={`px-5 py-2 rounded-full font-bold text-[10px] tracking-widest uppercase transition-all duration-300 flex items-center gap-2 font-mono ${
+            isRecording
+              ? "bg-red-500/15 hover:bg-red-500/25 border border-red-500/40 text-red-300"
+              : "bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 text-cyan-300 disabled:opacity-40"
           }`}
         >
           {isRecording ? (
-            <>
-              <MicOff className="w-3.5 h-3.5" /> Stop Recording
-            </>
+            <><MicOff className="w-3.5 h-3.5" /> Stop Recording</>
           ) : (
-            <>
-              <Mic className="w-3.5 h-3.5 animate-bounce" /> Record Commands
-            </>
+            <><Mic className="w-3.5 h-3.5" /> Record Voice</>
           )}
-        </button>
+        </motion.button>
       </div>
 
-      {/* Omi webhook simulation tools */}
-      <div className="border-t border-gray-800/80 pt-3 mt-1.5">
-        <h3 className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+      {/* Omi simulator */}
+      <div className="border-t border-gray-800/70 pt-3 space-y-2">
+        <h3 className="text-[9px] font-bold text-gray-500 uppercase tracking-[0.25em] flex items-center gap-1.5">
           <Radio className="w-3 h-3 text-purple-400" /> Omi Webhook Simulator
         </h3>
 
-        <div className="space-y-2">
-          {/* Preset selector */}
-          <div className="flex flex-col gap-0.5">
-            <label className="text-[9px] text-gray-500 uppercase tracking-widest">Select Preset Voice Intake</label>
-            <select
-              value={selectedPreset}
-              onChange={(e) => {
-                setSelectedPreset(e.target.value);
-                setCustomPrompt("");
-              }}
-              className="bg-black/40 border border-gray-800 rounded-lg p-1.5 text-[11px] text-gray-300 outline-none focus:border-cyan-500/50"
-            >
-              {selectedPreset === "" && (
-                <option value="" disabled>
-                  Custom Transcript Active...
-                </option>
-              )}
-              {PRESET_PROMPTS.map((prompt, idx) => (
-                <option key={idx} value={prompt}>
-                  {prompt.length > 45 ? `${prompt.substring(0, 42)}...` : prompt}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Custom text intake */}
-          <div className="flex flex-col gap-0.5">
-            <label className="text-[9px] text-gray-500 uppercase tracking-widest">Or Write Custom Transcript</label>
-            <input
-              type="text"
-              placeholder="e.g. Research competitor note-taking apps..."
-              value={customPrompt}
-              onChange={(e) => {
-                setCustomPrompt(e.target.value);
-                setSelectedPreset("");
-              }}
-              className="glass-input rounded-lg p-1.5 text-[11px] outline-none"
-            />
-          </div>
-
-          {/* Submit simulation */}
-          <button
-            onClick={handleOmiPush}
-            disabled={isExecuting || isRecording}
-            className="w-full bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/30 text-purple-300 disabled:opacity-50 py-1.5 rounded-lg text-[10px] font-semibold uppercase tracking-wider transition-all duration-300 flex items-center justify-center gap-1.5"
+        <div className="flex flex-col gap-0.5">
+          <label className="text-[9px] text-gray-600 uppercase tracking-widest">Preset Mission</label>
+          <select
+            value={selectedPreset}
+            onChange={(e) => { setSelectedPreset(e.target.value); setCustomPrompt(""); }}
+            className="bg-black/50 border border-gray-800 rounded-lg p-1.5 text-[11px] text-gray-300 outline-none focus:border-purple-500/50 transition-colors"
           >
-            <Play className="w-3 h-3" /> Simulate Omi Device Push
-          </button>
+            {selectedPreset === "" && <option value="" disabled>Custom active...</option>}
+            {PRESET_PROMPTS.map((p, i) => (
+              <option key={i} value={p}>{p.length > 48 ? p.slice(0, 45) + "..." : p}</option>
+            ))}
+          </select>
         </div>
+
+        <div className="flex flex-col gap-0.5">
+          <label className="text-[9px] text-gray-600 uppercase tracking-widest">Custom Directive</label>
+          <input
+            type="text"
+            placeholder="e.g. Build a fintech app strategy..."
+            value={customPrompt}
+            onChange={(e) => { setCustomPrompt(e.target.value); setSelectedPreset(""); }}
+            className="glass-input rounded-lg p-1.5 text-[11px] outline-none"
+          />
+        </div>
+
+        <motion.button
+          onClick={handleOmiPush}
+          disabled={isExecuting || isRecording}
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+          className="w-full bg-gradient-to-r from-purple-500/10 to-cyan-500/10 hover:from-purple-500/20 hover:to-cyan-500/20 border border-purple-500/30 text-purple-300 disabled:opacity-40 py-2 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all duration-300 flex items-center justify-center gap-2 font-mono"
+        >
+          <Play className="w-3 h-3" />
+          {isExecuting ? "Agents Running..." : "Deploy AI Workforce"}
+        </motion.button>
       </div>
-    </div>
+    </motion.div>
   );
 }
