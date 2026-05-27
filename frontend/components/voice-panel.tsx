@@ -29,6 +29,7 @@ const STATUS_PHASES = [
 
 export default function VoicePanel({ onTriggerWorkflow, onResearchQuery, isExecuting, isResearching }: VoicePanelProps) {
   const [isRecording, setIsRecording] = useState(false);
+  const [audioLevel, setAudioLevel] = useState(0);
   const [phase, setPhase] = useState<string>("standby");
   const [statusMsg, setStatusMsg] = useState("Ready to receive commands...");
   const [selectedPreset, setSelectedPreset] = useState(PRESET_PROMPTS[0]);
@@ -37,8 +38,23 @@ export default function VoicePanel({ onTriggerWorkflow, onResearchQuery, isExecu
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const animationFrameRef = useRef<number | null>(null);
 
   const currentPhase = STATUS_PHASES.find(p => p.key === phase) ?? STATUS_PHASES[0];
+
+  // Clean up audio nodes on unmount
+  React.useEffect(() => {
+    return () => {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+      if (audioContextRef.current) {
+        audioContextRef.current.close().catch(() => {});
+      }
+    };
+  }, []);
 
   const startRecording = async () => {
     setError(null);
@@ -47,6 +63,34 @@ export default function VoicePanel({ onTriggerWorkflow, onResearchQuery, isExecu
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const mediaRecorder = new MediaRecorder(stream);
       mediaRecorderRef.current = mediaRecorder;
+
+      // Web Audio API Analyzer Node Setup
+      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+      if (AudioContextClass) {
+        const audioCtx = new AudioContextClass();
+        audioContextRef.current = audioCtx;
+        const source = audioCtx.createMediaStreamSource(stream);
+        const analyser = audioCtx.createAnalyser();
+        analyser.fftSize = 64; // Smaller fftSize for faster visual response
+        analyserRef.current = analyser;
+        source.connect(analyser);
+
+        const dataArray = new Uint8Array(analyser.frequencyBinCount);
+        const draw = () => {
+          if (!analyserRef.current) return;
+          analyserRef.current.getByteFrequencyData(dataArray);
+          let sum = 0;
+          for (let i = 0; i < dataArray.length; i++) {
+            sum += dataArray[i];
+          }
+          const average = sum / dataArray.length;
+          // Normalize value (standard vocal levels in standard mic input peak ~150-180 out of 255)
+          const normalized = Math.min(100, Math.floor((average / 150) * 100));
+          setAudioLevel(normalized);
+          animationFrameRef.current = requestAnimationFrame(draw);
+        };
+        draw();
+      }
 
       mediaRecorder.ondataavailable = (event) => {
         if (event.data.size > 0) audioChunksRef.current.push(event.data);
@@ -84,6 +128,17 @@ export default function VoicePanel({ onTriggerWorkflow, onResearchQuery, isExecu
     if (mediaRecorderRef.current && isRecording) {
       mediaRecorderRef.current.stop();
       setIsRecording(false);
+
+      // Stop Web Audio nodes
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = null;
+      }
+      if (audioContextRef.current) {
+        audioContextRef.current.close().catch(() => {});
+        audioContextRef.current = null;
+      }
+      setAudioLevel(0);
     }
   };
 
@@ -141,27 +196,41 @@ export default function VoicePanel({ onTriggerWorkflow, onResearchQuery, isExecu
           {/* Animated pulse rings when recording */}
           {isRecording && (
             <>
-              <div className="absolute w-24 h-24 rounded-full border border-cyan-400/30 neural-ring" />
-              <div className="absolute w-24 h-24 rounded-full border border-cyan-400/20 neural-ring" style={{ animationDelay: "0.6s" }} />
-              <div className="absolute w-24 h-24 rounded-full border border-cyan-400/10 neural-ring" style={{ animationDelay: "1.2s" }} />
+              <div 
+                className="absolute w-24 h-24 rounded-full border border-cyan-400/30 neural-ring transition-all duration-75"
+                style={{ transform: `scale(${1 + (audioLevel / 100) * 0.25})` }}
+              />
+              <div 
+                className="absolute w-24 h-24 rounded-full border border-cyan-400/20 neural-ring transition-all duration-75" 
+                style={{ transform: `scale(${1.15 + (audioLevel / 100) * 0.35})`, animationDelay: "0.6s" }}
+              />
+              <div 
+                className="absolute w-24 h-24 rounded-full border border-cyan-400/10 neural-ring transition-all duration-75" 
+                style={{ transform: `scale(${1.3 + (audioLevel / 100) * 0.45})`, animationDelay: "1.2s" }}
+              />
             </>
           )}
 
           {/* Waveform or static mic */}
           {isRecording ? (
             <div className={`w-20 h-20 rounded-full border-2 ${ringColor} flex items-center justify-center bg-black/50 transition-all duration-300`}>
-              <div className="flex items-end gap-0.5 h-8">
-                {[...Array(10)].map((_, i) => (
-                  <span
-                    key={i}
-                    className="wave-bar rounded-full"
-                    style={{
-                      width: "3px",
-                      height: "32px",
-                      background: `rgba(0, 212, 255, ${0.4 + i * 0.06})`,
-                    }}
-                  />
-                ))}
+              <div className="flex items-end gap-1 h-8 px-2">
+                {[...Array(8)].map((_, i) => {
+                  // Compute dynamic heights based on frequency levels
+                  const multiplier = 0.25 + Math.sin((i / 7) * Math.PI) * 0.75;
+                  const dynamicHeight = Math.max(4, Math.min(32, (audioLevel / 100) * 32 * multiplier + Math.random() * 4));
+                  return (
+                    <span
+                      key={i}
+                      className="wave-bar rounded-full transition-all duration-75"
+                      style={{
+                        width: "3px",
+                        height: `${dynamicHeight}px`,
+                        background: `rgba(6, 182, 212, ${0.4 + i * 0.08})`,
+                      }}
+                    />
+                  );
+                })}
               </div>
             </div>
           ) : (

@@ -104,13 +104,16 @@ class WorkflowEngine:
             cls.log_message(workflow_id, "Memory Agent", "Searching Qdrant for past related startup documents...")
             await cls.push_event(workflow_id, "agent_active", {"agent": "Memory Agent", "step": 2})
             
-            past_context = await asyncio.to_thread(retrieve_historical_context, prompt)
+            past_context, matches = await asyncio.to_thread(retrieve_historical_context, prompt)
             if past_context:
                 cls.log_message(workflow_id, "Memory Agent", f"Found matching vectors in Qdrant. Injecting context.")
             else:
                 cls.log_message(workflow_id, "Memory Agent", "No relevant past memory matches found. Starting with clean context.")
             
-            await cls.push_event(workflow_id, "memory_pulled", {"context_found": bool(past_context)})
+            await cls.push_event(workflow_id, "memory_pulled", {
+                "context_found": bool(past_context),
+                "matches": matches
+            })
 
             # ----------------------------------------------------
             # STEP 3: RESEARCH AGENT

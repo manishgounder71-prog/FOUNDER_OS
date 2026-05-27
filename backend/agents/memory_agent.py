@@ -20,14 +20,15 @@ def save_agent_output(collection: str, content: str, startup_name: str, doc_type
     print(f"[Memory Agent] Saved '{doc_type}' inside Qdrant collection '{collection}' (Point: {point_id})")
     return point_id
 
-def retrieve_historical_context(query: str, limit_per_col: int = 2) -> str:
+def retrieve_historical_context(query: str, limit_per_col: int = 2) -> tuple[str, list]:
     """Queries all Qdrant vector collections to compile relevant history for a query."""
     try:
         aggregated_results = search_all_collections(query, limit_per_collection=limit_per_col)
         if not aggregated_results:
-            return ""
+            return "", []
             
         context_blocks = []
+        matches = []
         for col, hits in aggregated_results.items():
             # Filter hits by a cosine similarity relevance threshold
             # Cosine similarity >= 0.7 indicates semantic relevance; mock/random matches fall well below this
@@ -45,7 +46,15 @@ def retrieve_historical_context(query: str, limit_per_col: int = 2) -> str:
                 context_blocks.append(
                     f"Result #{idx+1} [Type: {doc_type}, Date: {ts}, Relevance: {score:.3f}]:\n{text}\n"
                 )
-        return "\n".join(context_blocks)
+                matches.append({
+                    "id": hit.get("id"),
+                    "collection": col,
+                    "type": doc_type,
+                    "timestamp": ts,
+                    "score": float(score),
+                    "text": text[:150] + "..." if len(text) > 150 else text
+                })
+        return "\n".join(context_blocks), matches
     except Exception as e:
         print(f"[Memory Agent] Error retrieving historical context: {e}")
-        return ""
+        return "", []

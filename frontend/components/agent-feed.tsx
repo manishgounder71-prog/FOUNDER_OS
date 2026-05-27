@@ -13,6 +13,8 @@ interface LogEntry {
 
 interface AgentFeedProps {
   logs: LogEntry[];
+  filter?: string | null;
+  onClearFilter?: () => void;
 }
 
 const AGENT_CONFIG: Record<string, {
@@ -137,15 +139,19 @@ function AgentLogEntry({ log, index }: { log: LogEntry; index: number }) {
   );
 }
 
-export default function AgentFeed({ logs }: AgentFeedProps) {
+export default function AgentFeed({ logs, filter, onClearFilter }: AgentFeedProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const isLive = logs.length > 0;
+  
+  const filteredLogs = filter 
+    ? logs.filter(log => log.sender === filter) 
+    : logs;
 
   useEffect(() => {
     if (containerRef.current) {
       containerRef.current.scrollTo({ top: containerRef.current.scrollHeight, behavior: "smooth" });
     }
-  }, [logs]);
+  }, [filteredLogs]);
 
   return (
     <motion.div
@@ -164,6 +170,12 @@ export default function AgentFeed({ logs }: AgentFeedProps) {
           <h2 className="text-xs font-bold tracking-widest text-gray-200 uppercase font-mono">
             Live Agent Console
           </h2>
+          {filter && (
+            <span className="flex items-center gap-1 text-[8px] font-mono uppercase bg-purple-500/20 text-purple-300 border border-purple-500/40 px-2 py-0.5 rounded-full">
+              <span>Filter: {filter.replace(" Agent", "")}</span>
+              <button onClick={onClearFilter} className="hover:text-red-400 font-bold ml-0.5">×</button>
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-2">
           {isLive && (
@@ -177,7 +189,7 @@ export default function AgentFeed({ logs }: AgentFeedProps) {
             </motion.div>
           )}
           <span className="text-[9px] font-mono text-gray-600 bg-gray-900 border border-gray-800 px-2 py-0.5 rounded-full">
-            {logs.length} events
+            {filteredLogs.length} events
           </span>
         </div>
       </div>
@@ -187,7 +199,7 @@ export default function AgentFeed({ logs }: AgentFeedProps) {
         ref={containerRef}
         className="flex-1 overflow-y-auto custom-scrollbar space-y-2 pr-1"
       >
-        {logs.length === 0 ? (
+        {filteredLogs.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center gap-3">
             {/* Animated neural idle state */}
             <div className="relative w-12 h-12">
@@ -198,13 +210,17 @@ export default function AgentFeed({ logs }: AgentFeedProps) {
               </div>
             </div>
             <div className="text-center">
-              <p className="text-[10px] text-gray-600 font-mono uppercase tracking-widest">Awaiting Command</p>
-              <p className="text-[9px] text-gray-700 font-mono mt-0.5">Agents on standby...</p>
+              <p className="text-[10px] text-gray-600 font-mono uppercase tracking-widest">
+                {filter ? "No filtered events" : "Awaiting Command"}
+              </p>
+              <p className="text-[9px] text-gray-700 font-mono mt-0.5">
+                {filter ? `No events logged by ${filter}` : "Agents on standby..."}
+              </p>
             </div>
           </div>
         ) : (
           <AnimatePresence initial={false}>
-            {logs.map((log, i) => (
+            {filteredLogs.map((log, i) => (
               <AgentLogEntry key={i} log={log} index={i} />
             ))}
           </AnimatePresence>

@@ -7,9 +7,11 @@ interface WorkflowGraphProps {
   activeAgent: string;
   currentStep: number;
   status: string;
+  onSelectAgent?: (agentName: string) => void;
+  memoryMatches?: { collection: string; score: number; type: string; text?: string }[];
 }
 
-export default function WorkflowGraph({ activeAgent, currentStep, status }: WorkflowGraphProps) {
+export default function WorkflowGraph({ activeAgent, currentStep, status, onSelectAgent, memoryMatches }: WorkflowGraphProps) {
   // Determine states of each node
   const getAgentState = (agentName: string) => {
     if (status === "completed") return "completed";
@@ -218,7 +220,11 @@ export default function WorkflowGraph({ activeAgent, currentStep, status }: Work
           {/* AGENT NODES */}
           
           {/* Node 1: Planner */}
-          <g transform={`translate(${coords.planner.x}, ${coords.planner.y})`} className="cursor-pointer">
+          <g 
+            transform={`translate(${coords.planner.x}, ${coords.planner.y})`} 
+            className="cursor-pointer hover:brightness-125 transition-all duration-300"
+            onClick={() => onSelectAgent && onSelectAgent("Planner Agent")}
+          >
             <circle r="26" className={`transition-all duration-500 ${getNodeStyles(plannerState).circle}`} filter={plannerState === "active" ? "url(#glow-cyan-filter)" : ""} />
             <foreignObject x="-13" y="-13" width="26" height="26">
               <div className="w-full h-full flex items-center justify-center">
@@ -231,7 +237,11 @@ export default function WorkflowGraph({ activeAgent, currentStep, status }: Work
           </g>
 
           {/* Node 2: Researcher */}
-          <g transform={`translate(${coords.researcher.x}, ${coords.researcher.y})`}>
+          <g 
+            transform={`translate(${coords.researcher.x}, ${coords.researcher.y})`}
+            className="cursor-pointer hover:brightness-125 transition-all duration-300"
+            onClick={() => onSelectAgent && onSelectAgent("Research Agent")}
+          >
             <circle r="26" className={`transition-all duration-500 ${getNodeStyles(researcherState).circle}`} filter={researcherState === "active" ? "url(#glow-cyan-filter)" : ""} />
             <foreignObject x="-13" y="-13" width="26" height="26">
               <div className="w-full h-full flex items-center justify-center">
@@ -244,7 +254,11 @@ export default function WorkflowGraph({ activeAgent, currentStep, status }: Work
           </g>
 
           {/* Node 3: Financial */}
-          <g transform={`translate(${coords.financial.x}, ${coords.financial.y})`}>
+          <g 
+            transform={`translate(${coords.financial.x}, ${coords.financial.y})`}
+            className="cursor-pointer hover:brightness-125 transition-all duration-300"
+            onClick={() => onSelectAgent && onSelectAgent("Financial Agent")}
+          >
             <circle r="26" className={`transition-all duration-500 ${getNodeStyles(financialState).circle}`} filter={financialState === "active" ? "url(#glow-cyan-filter)" : ""} />
             <foreignObject x="-13" y="-13" width="26" height="26">
               <div className="w-full h-full flex items-center justify-center">
@@ -257,7 +271,11 @@ export default function WorkflowGraph({ activeAgent, currentStep, status }: Work
           </g>
 
           {/* Node 4: Content */}
-          <g transform={`translate(${coords.content.x}, ${coords.content.y})`}>
+          <g 
+            transform={`translate(${coords.content.x}, ${coords.content.y})`}
+            className="cursor-pointer hover:brightness-125 transition-all duration-300"
+            onClick={() => onSelectAgent && onSelectAgent("Content Agent")}
+          >
             <circle r="26" className={`transition-all duration-500 ${getNodeStyles(contentState).circle}`} filter={contentState === "active" ? "url(#glow-cyan-filter)" : ""} />
             <foreignObject x="-13" y="-13" width="26" height="26">
               <div className="w-full h-full flex items-center justify-center">
@@ -270,7 +288,11 @@ export default function WorkflowGraph({ activeAgent, currentStep, status }: Work
           </g>
 
           {/* Node 5: Reviewer */}
-          <g transform={`translate(${coords.reviewer.x}, ${coords.reviewer.y})`}>
+          <g 
+            transform={`translate(${coords.reviewer.x}, ${coords.reviewer.y})`}
+            className="cursor-pointer hover:brightness-125 transition-all duration-300"
+            onClick={() => onSelectAgent && onSelectAgent("Reviewer Agent")}
+          >
             <circle r="26" className={`transition-all duration-500 ${getNodeStyles(reviewerState).circle}`} filter={reviewerState === "active" ? "url(#glow-cyan-filter)" : ""} />
             <foreignObject x="-13" y="-13" width="26" height="26">
               <div className="w-full h-full flex items-center justify-center">
@@ -283,7 +305,11 @@ export default function WorkflowGraph({ activeAgent, currentStep, status }: Work
           </g>
 
           {/* Node 6: Memory */}
-          <g transform={`translate(${coords.memory.x}, ${coords.memory.y})`}>
+          <g 
+            transform={`translate(${coords.memory.x}, ${coords.memory.y})`}
+            className="cursor-pointer hover:brightness-125 transition-all duration-300"
+            onClick={() => onSelectAgent && onSelectAgent("Memory Agent")}
+          >
             <circle r="26" className={`transition-all duration-500 ${getNodeStyles(memoryState).circle}`} filter={memoryState === "active" ? "url(#glow-cyan-filter)" : ""} />
             <foreignObject x="-13" y="-13" width="26" height="26">
               <div className="w-full h-full flex items-center justify-center">
@@ -309,6 +335,31 @@ export default function WorkflowGraph({ activeAgent, currentStep, status }: Work
           <span className="w-2.5 h-2.5 rounded-full bg-gray-950 border border-gray-800" /> Pending
         </div>
       </div>
+
+      {/* Floating Semantic Memory Matches Overlay */}
+      {memoryMatches && memoryMatches.length > 0 && (
+        <div className="absolute top-[80px] right-[24px] bg-[#0c0c0e]/95 border border-purple-500/30 rounded-xl p-3 max-w-[210px] backdrop-blur-md z-20 shadow-[0_0_15px_rgba(168,85,247,0.15)] animate-in fade-in slide-in-from-top-2 duration-300">
+          <p className="text-[9px] font-mono uppercase tracking-widest text-purple-400 font-bold mb-1.5 flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-purple-500 animate-ping" />
+            Semantic Retrieval
+          </p>
+          <div className="space-y-2">
+            {memoryMatches.map((m, idx) => (
+              <div key={idx} className="border-b border-gray-800/40 last:border-0 pb-1.5 last:pb-0">
+                <div className="flex justify-between items-center text-[10px] font-mono mb-0.5">
+                  <span className="text-gray-400 truncate max-w-[130px]" title={m.type}>{m.type}</span>
+                  <span className="text-emerald-400 font-bold">{(m.score * 100).toFixed(0)}% Match</span>
+                </div>
+                {m.text && (
+                  <p className="text-[8px] text-gray-500 font-sans leading-relaxed line-clamp-2">
+                    {m.text}
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

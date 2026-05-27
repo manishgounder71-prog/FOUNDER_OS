@@ -11,9 +11,9 @@ import TaskBoard from "@/components/task-board";
 import HudMetrics from "@/components/hud-metrics";
 import AutonomousPlanningOverlay from "@/components/autonomous-planning-overlay";
 import BrainGraph from "@/components/brain-graph";
-import { BACKEND_URL, getTimeline, TimelineItem, Task, executeDirectiveResearch } from "@/lib/api";
+import { BACKEND_URL, getTimeline, TimelineItem, Task, executeDirectiveResearch, simulateOmiWebhook } from "@/lib/api";
 import DirectivePanel from "@/components/directive-panel";
-import { Radio, Database, Cpu, Shield } from "lucide-react";
+import { Radio, Database, Cpu, Shield, X, Sparkles, Award, ExternalLink, Presentation, Rocket } from "lucide-react";
 import confetti from "canvas-confetti";
 
 export default function Home() {
@@ -25,6 +25,11 @@ export default function Home() {
   const [logs, setLogs] = useState<any[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [finalOutput, setFinalOutput] = useState("");
+  
+  // State for interactive features
+  const [memoryMatches, setMemoryMatches] = useState<any[]>([]);
+  const [selectedAgentFilter, setSelectedAgentFilter] = useState<string | null>(null);
+  const [isPitchModalOpen, setIsPitchModalOpen] = useState(false);
   
   // Document Viewer states
   const [selectedDocTitle, setSelectedDocTitle] = useState("Executive Strategy");
@@ -124,6 +129,8 @@ export default function Home() {
     setLogs([]);
     setTasks([]);
     setFinalOutput("");
+    setMemoryMatches([]);
+    setSelectedAgentFilter(null);
 
     // Show autonomous planning overlay
     setOverlayPrompt(promptText);
@@ -199,13 +206,16 @@ export default function Home() {
             break;
 
           case "memory_pulled":
+            if (data.matches) {
+              setMemoryMatches(data.matches);
+            }
             setLogs((prev) => [
               ...prev,
               {
                 timestamp,
                 sender: "Memory Agent",
                 message: data.context_found
-                  ? "Semantic memory matches retrieved. Injecting vectors into researcher context."
+                  ? `Semantic memory matches retrieved (${data.matches?.length || 0} vectors). Injecting into researcher context.`
                   : "No overlapping semantic histories found. Proceeding with clean index.",
                 level: "info"
               }
@@ -381,6 +391,16 @@ export default function Home() {
         </div>
 
         <div className="flex items-center gap-6 text-[10px] font-mono uppercase tracking-widest text-gray-400">
+          <button 
+            onClick={() => setIsPitchModalOpen(true)}
+            className="flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-purple-500/20 to-cyan-500/20 hover:from-purple-500/35 hover:to-cyan-500/35 border border-purple-500/40 text-purple-300 hover:text-purple-200 transition-all duration-300 rounded-lg font-mono text-[9px] font-bold"
+          >
+            <Presentation className="w-3.5 h-3.5 text-purple-400" />
+            <span>Pitch & Demo Guide</span>
+          </button>
+          
+          <div className="w-px h-4 bg-gray-800" />
+
           <div className="flex items-center gap-1.5">
             <span className="w-2 h-2 bg-green-500 rounded-full animate-ping" />
             <span>Omi Wearable Sync: ACTIVE</span>
@@ -433,10 +453,20 @@ export default function Home() {
         {/* MIDDLE COLUMN: Orchestration SVG graph & Live agent console logs */}
         <div className="xl:col-span-2 flex flex-col gap-6">
           <div className="h-[460px]">
-            <WorkflowGraph activeAgent={activeAgent} currentStep={currentStep} status={status} />
+            <WorkflowGraph 
+              activeAgent={activeAgent} 
+              currentStep={currentStep} 
+              status={status} 
+              onSelectAgent={(agentName) => setSelectedAgentFilter(selectedAgentFilter === agentName ? null : agentName)}
+              memoryMatches={memoryMatches}
+            />
           </div>
           <div>
-            <AgentFeed logs={logs} />
+            <AgentFeed 
+              logs={logs} 
+              filter={selectedAgentFilter}
+              onClearFilter={() => setSelectedAgentFilter(null)}
+            />
           </div>
         </div>
 
@@ -469,6 +499,118 @@ export default function Home() {
         items={timelineItems}
         onSelectItem={handleSelectTimelineItem}
       />
+
+      {/* Pitch Deck & Demo Simulator Modal */}
+      {isPitchModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-4 overflow-y-auto">
+          <div className="bg-[#050507]/95 border border-gray-800/80 rounded-2xl p-8 max-w-2xl w-full relative shadow-[0_0_50px_rgba(168,85,247,0.2)] max-h-[90vh] overflow-y-auto custom-scrollbar animate-in fade-in zoom-in-95 duration-200">
+            <button 
+              onClick={() => setIsPitchModalOpen(false)}
+              className="absolute top-4 right-4 text-gray-500 hover:text-gray-300 transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            
+            <div className="flex items-center gap-2.5 mb-6">
+              <Award className="w-6 h-6 text-purple-400" />
+              <h2 className="text-xl font-bold tracking-wider text-gray-100 uppercase font-mono bg-gradient-to-r from-purple-400 to-cyan-400 bg-clip-text text-transparent">
+                FounderOS Pitch & Demo Guide
+              </h2>
+            </div>
+            
+            <div className="space-y-6">
+              <div>
+                <h3 className="text-xs font-bold text-cyan-400 uppercase tracking-widest mb-2 font-mono flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-cyan-400" /> 1. The Value Proposition
+                </h3>
+                <p className="text-xs text-gray-400 leading-relaxed font-sans">
+                  Solo founders frequently face decision fatigue and context-switching overhead. FounderOS solves this by deploying a collaborative, specialized multi-agent AI team (Planner, Researcher, Financial, Content, Reviewer, Memory) controlled via speech, backed by a persistent semantic memory layer that retains knowledge forever.
+                </p>
+              </div>
+
+              <div>
+                <h3 className="text-xs font-bold text-cyan-400 uppercase tracking-widest mb-2 font-mono flex items-center gap-1.5">
+                  <Cpu className="w-3.5 h-3.5 text-cyan-400" /> 2. Technical Depth
+                </h3>
+                <ul className="text-xs text-gray-400 leading-relaxed list-disc list-inside space-y-1 font-sans">
+                  <li><strong>Voice Intake</strong>: Integrates physical wearable telemetry (Omi device webhooks) and Whisper transcribing.</li>
+                  <li><strong>Orchestration</strong>: Powered by Lyzr, coordinating sequential background agent queues using Server-Sent Events (SSE).</li>
+                  <li><strong>Semantic Memory</strong>: Uses Qdrant cosine vector matching (local DB) to index and retrieve past contextual knowledge blocks.</li>
+                </ul>
+              </div>
+
+              <div className="border-t border-gray-900 pt-5">
+                <h3 className="text-xs font-bold text-purple-400 uppercase tracking-widest mb-3 font-mono flex items-center gap-1.5">
+                  <Rocket className="w-3.5 h-3.5 text-purple-400 animate-pulse" /> 3. One-Click Demo Presets
+                </h3>
+                <p className="text-[11px] text-gray-500 mb-3 font-mono">
+                  Click a preset below to instantly trigger the multi-agent execution pipeline with custom simulated content and semantic vector indexing:
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {[
+                    {
+                      title: "EdTech Study Copilot",
+                      desc: "Calculates study tools TAM, targets student active recall markets, and models Quizlet competition.",
+                      prompt: "Create a launch strategy for an AI study app."
+                    },
+                    {
+                      title: "Secure Local Notes",
+                      desc: "Models Obsidian/Notion comparison, pricing plans for encrypted sync, and self-hosted storage.",
+                      prompt: "Research competitors for an AI note-taking app."
+                    },
+                    {
+                      title: "SaaS Billing Dashboard",
+                      desc: "Simulates seat caps, credit thresholds, and conversion projections for Stripe analytics.",
+                      prompt: "Find market opportunities for a B2B SaaS pricing optimization dashboard."
+                    },
+                    {
+                      title: "AI Shopping Cart",
+                      desc: "Compares Shopify/Amazon checkouts, models affiliate commissions, and styles personal shopping.",
+                      prompt: "Create a launch strategy for an AI shopping app."
+                    }
+                  ].map((preset) => (
+                    <button
+                      key={preset.title}
+                      onClick={async () => {
+                        setIsPitchModalOpen(false);
+                        try {
+                          const workflowId = await simulateOmiWebhook(preset.prompt);
+                          handleTriggerWorkflow(workflowId, preset.prompt);
+                        } catch (err) {
+                          console.error("Preset demo failed", err);
+                        }
+                      }}
+                      disabled={isExecuting}
+                      className="p-3 bg-white/[0.02] hover:bg-white/[0.05] border border-gray-800/60 rounded-xl text-left transition-all duration-300 flex flex-col justify-between group disabled:opacity-40 disabled:pointer-events-none"
+                    >
+                      <div>
+                        <p className="text-xs font-bold text-gray-200 group-hover:text-purple-300 transition-colors font-mono mb-1">
+                          {preset.title}
+                        </p>
+                        <p className="text-[10px] text-gray-500 leading-normal mb-2">
+                          {preset.desc}
+                        </p>
+                      </div>
+                      <span className="text-[9px] font-mono uppercase text-cyan-400 group-hover:underline flex items-center gap-1">
+                        Deploy Mission <ExternalLink className="w-2.5 h-2.5" />
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+            
+            <div className="mt-8 pt-4 border-t border-gray-900 flex justify-end">
+              <button
+                onClick={() => setIsPitchModalOpen(false)}
+                className="px-5 py-2 bg-gray-950 hover:bg-gray-900 border border-gray-800 rounded-lg text-xs font-bold font-mono text-gray-300 uppercase tracking-widest transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
