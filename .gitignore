@@ -1,0 +1,23 @@
+# Root .gitignore for FounderOS fullstack project
+
+# Backend virtual environment & caches
+backend/venv/
+backend/__pycache__/
+**/__pycache__/
+backend/qdrant_db/
+qdrant_db/
+
+# Frontend build & dependencies
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/build/
+
+# Local configuration and environment variables
+.env
+.env*.local
+
+# System generated logs and directories
+*.log
+.system_generated/
+.qodo/
