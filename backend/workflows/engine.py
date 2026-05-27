@@ -5,6 +5,8 @@ from datetime import datetime
 from typing import Dict, Any, List, Optional
 from backend.agents.planner import run_planner
 from backend.agents.researcher import run_researcher
+from backend.agents.financial import run_financial
+from backend.agents.content import run_content
 from backend.agents.memory_agent import save_agent_output, retrieve_historical_context
 from backend.agents.reviewer import run_reviewer
 from backend.database import save_memory
@@ -28,7 +30,7 @@ class WorkflowEngine:
             "logs": [],
             "active_agent": "None",
             "current_step": 0,
-            "total_steps": 6,  # 1. Planner, 2. Memory Pull, 3. Research, 4. Research Index, 5. Review, 6. Strategy Index
+            "total_steps": 7,  # 1. Planner, 2. Memory Pull, 3. Research, 4. Financial, 5. Content, 6. Review, 7. Strategy Index
             "final_output": "",
             "created_at": datetime.utcnow().isoformat() + "Z"
         }
@@ -131,14 +133,7 @@ class WorkflowEngine:
                 "tasks": workflow["tasks"]
             })
 
-            # ----------------------------------------------------
-            # STEP 4: MEMORY AGENT (Index Research)
-            # ----------------------------------------------------
-            workflow["active_agent"] = "Memory Agent"
-            workflow["current_step"] = 4
-            cls.log_message(workflow_id, "Memory Agent", "Saving market intelligence report in Qdrant collections...")
-            await cls.push_event(workflow_id, "agent_active", {"agent": "Memory Agent", "step": 4})
-            
+            # Save market research report in market_research collection
             await asyncio.to_thread(
                 save_agent_output,
                 collection="market_research",
@@ -146,20 +141,80 @@ class WorkflowEngine:
                 startup_name=prompt[:30],
                 doc_type="Market Research"
             )
-            
-            cls.log_message(workflow_id, "Memory Agent", "Indexed research report in 'market_research' vector database collection.")
             await cls.push_event(workflow_id, "memory_indexed", {"collection": "market_research"})
 
             # ----------------------------------------------------
-            # STEP 5: REVIEWER AGENT
+            # STEP 4: FINANCIAL AGENT
+            # ----------------------------------------------------
+            workflow["active_agent"] = "Financial Agent"
+            workflow["current_step"] = 4
+            cls.log_message(workflow_id, "Financial Agent", "Calculating operational runway, costs, and pricing tiers...")
+            await cls.push_event(workflow_id, "agent_active", {"agent": "Financial Agent", "step": 4})
+            
+            financial_output = await asyncio.to_thread(run_financial, prompt, past_context)
+            
+            # Update planner tasks board
+            for task in workflow["tasks"]:
+                if task.get("assignee") == "Financial":
+                    task["status"] = "completed"
+            
+            cls.log_message(workflow_id, "Financial Agent", "Financial and monetization models compiled.")
+            await cls.push_event(workflow_id, "financial_completed", {
+                "report": financial_output,
+                "tasks": workflow["tasks"]
+            })
+
+            # Save financial blueprint in market_research collection
+            await asyncio.to_thread(
+                save_agent_output,
+                collection="market_research",
+                content=financial_output,
+                startup_name=prompt[:30],
+                doc_type="Financial Blueprint"
+            )
+            await cls.push_event(workflow_id, "memory_indexed", {"collection": "market_research"})
+
+            # ----------------------------------------------------
+            # STEP 5: CONTENT AGENT
+            # ----------------------------------------------------
+            workflow["active_agent"] = "Content Agent"
+            workflow["current_step"] = 5
+            cls.log_message(workflow_id, "Content Agent", "Drafting primary taglines, landing page copy, and launch threads...")
+            await cls.push_event(workflow_id, "agent_active", {"agent": "Content Agent", "step": 5})
+            
+            content_output = await asyncio.to_thread(run_content, prompt, past_context)
+            
+            # Update planner tasks board
+            for task in workflow["tasks"]:
+                if task.get("assignee") == "Content":
+                    task["status"] = "completed"
+            
+            cls.log_message(workflow_id, "Content Agent", "Marketing copy and value propositions drafted.")
+            await cls.push_event(workflow_id, "content_completed", {
+                "report": content_output,
+                "tasks": workflow["tasks"]
+            })
+
+            # Save acquisition copy in market_research collection
+            await asyncio.to_thread(
+                save_agent_output,
+                collection="market_research",
+                content=content_output,
+                startup_name=prompt[:30],
+                doc_type="Acquisition Copy"
+            )
+            await cls.push_event(workflow_id, "memory_indexed", {"collection": "market_research"})
+
+            # ----------------------------------------------------
+            # STEP 6: REVIEWER AGENT
             # ----------------------------------------------------
             workflow["active_agent"] = "Reviewer Agent"
-            workflow["current_step"] = 5
+            workflow["current_step"] = 6
             cls.log_message(workflow_id, "Reviewer Agent", "Polishing copy and synthesizing final executive proposal...")
-            await cls.push_event(workflow_id, "agent_active", {"agent": "Reviewer Agent", "step": 5})
+            await cls.push_event(workflow_id, "agent_active", {"agent": "Reviewer Agent", "step": 6})
             
             tasks_str = json.dumps(workflow["tasks"], indent=2)
-            final_report = await asyncio.to_thread(run_reviewer, prompt, research_output, tasks_str)
+            final_report = await asyncio.to_thread(run_reviewer, prompt, research_output, tasks_str, financial_output, content_output)
             
             # Update reviewer task status
             for task in workflow["tasks"]:
@@ -175,12 +230,12 @@ class WorkflowEngine:
             })
 
             # ----------------------------------------------------
-            # STEP 6: MEMORY AGENT (Index Final Output & Workflow)
+            # STEP 7: MEMORY AGENT (Index Final Output & Workflow)
             # ----------------------------------------------------
             workflow["active_agent"] = "Memory Agent"
-            workflow["current_step"] = 6
+            workflow["current_step"] = 7
             cls.log_message(workflow_id, "Memory Agent", "Storing final strategy profile and logging workflow state in Qdrant...")
-            await cls.push_event(workflow_id, "agent_active", {"agent": "Memory Agent", "step": 6})
+            await cls.push_event(workflow_id, "agent_active", {"agent": "Memory Agent", "step": 7})
             
             # Store in 'strategies'
             await asyncio.to_thread(

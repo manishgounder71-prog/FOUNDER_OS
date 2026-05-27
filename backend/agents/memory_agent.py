@@ -29,8 +29,14 @@ def retrieve_historical_context(query: str, limit_per_col: int = 2) -> str:
             
         context_blocks = []
         for col, hits in aggregated_results.items():
+            # Filter hits by a cosine similarity relevance threshold
+            # Cosine similarity >= 0.7 indicates semantic relevance; mock/random matches fall well below this
+            valid_hits = [h for h in hits if h.get("score", 0.0) >= 0.7]
+            if not valid_hits:
+                continue
+                
             context_blocks.append(f"--- Qdrant Collection: {col} ---")
-            for idx, hit in enumerate(hits):
+            for idx, hit in enumerate(valid_hits):
                 payload = hit.get("payload", {})
                 text = payload.get("text", "")
                 doc_type = payload.get("type", "Unknown")

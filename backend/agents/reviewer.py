@@ -15,7 +15,7 @@ Ensure you outline:
 4. Core recommendations and launch channels.
 Make the tone professional, ambitious, and premium. Avoid writing placeholders."""
 
-def run_reviewer(prompt: str, research_report: str, planner_tasks: str) -> str:
+def run_reviewer(prompt: str, research_report: str, planner_tasks: str, financial_report: str = "", content_report: str = "") -> str:
     """Invokes the Reviewer Agent to synthesize, polish, and output the final startup strategy proposal."""
     input_data = f"""Founder Startup Idea: {prompt}
     
@@ -24,6 +24,11 @@ def run_reviewer(prompt: str, research_report: str, planner_tasks: str) -> str:
 
 === Competitive Analysis from Researcher ===
 {research_report}"""
+
+    if financial_report:
+        input_data += f"\n\n=== Financial Modeling & Pricing from Financial Strategist ===\n{financial_report}"
+    if content_report:
+        input_data += f"\n\n=== Copywriting & Marketing Assets from Growth Copywriter ===\n{content_report}"
 
     return execute_agent_task(
         role=REVIEWER_ROLE,

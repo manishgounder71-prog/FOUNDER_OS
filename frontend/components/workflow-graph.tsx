@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Brain, Search, Database, ShieldCheck, Activity } from "lucide-react";
+import { Brain, Search, Database, ShieldCheck, Activity, TrendingUp, PenTool } from "lucide-react";
 
 interface WorkflowGraphProps {
   activeAgent: string;
@@ -19,16 +19,20 @@ export default function WorkflowGraph({ activeAgent, currentStep, status }: Work
     // Fallback steps check
     if (agentName === "Planner Agent" && currentStep > 1) return "completed";
     if (agentName === "Research Agent" && currentStep > 3) return "completed";
-    if (agentName === "Memory Agent" && (currentStep === 3 || currentStep === 5 || currentStep >= 6)) return "completed";
-    if (agentName === "Reviewer Agent" && currentStep > 5) return "completed";
+    if (agentName === "Financial Agent" && currentStep > 4) return "completed";
+    if (agentName === "Content Agent" && currentStep > 5) return "completed";
+    if (agentName === "Reviewer Agent" && currentStep > 6) return "completed";
+    if (agentName === "Memory Agent" && currentStep >= 7) return "completed";
     
     return "idle";
   };
 
   const plannerState = getAgentState("Planner Agent");
   const researcherState = getAgentState("Research Agent");
-  const memoryState = getAgentState("Memory Agent");
+  const financialState = getAgentState("Financial Agent");
+  const contentState = getAgentState("Content Agent");
   const reviewerState = getAgentState("Reviewer Agent");
+  const memoryState = getAgentState("Memory Agent");
 
   const getNodeStyles = (state: string) => {
     switch (state) {
@@ -63,12 +67,14 @@ export default function WorkflowGraph({ activeAgent, currentStep, status }: Work
     }
   };
 
-  // Node Positions (relative to 100% SVG viewbox)
+  // Node Positions (relative to SVG viewbox 580 x 320)
   const coords = {
-    planner: { x: 80, y: 150 },
-    researcher: { x: 260, y: 70 },
-    memory: { x: 260, y: 230 },
-    reviewer: { x: 440, y: 150 }
+    planner: { x: 60, y: 160 },
+    researcher: { x: 200, y: 55 },
+    financial: { x: 200, y: 160 },
+    content: { x: 200, y: 265 },
+    reviewer: { x: 380, y: 160 },
+    memory: { x: 520, y: 160 }
   };
 
   return (
@@ -102,7 +108,7 @@ export default function WorkflowGraph({ activeAgent, currentStep, status }: Work
 
       {/* SVG Canvas */}
       <div className="flex-1 w-full relative min-h-[220px] flex items-center justify-center">
-        <svg viewBox="0 0 520 300" className="w-full h-full max-h-[260px] z-10">
+        <svg viewBox="0 0 580 320" className="w-full h-full max-h-[260px] z-10">
           {/* DEFINITIONS FOR SHADOW GLOWS */}
           <defs>
             <filter id="glow-cyan-filter" x="-20%" y="-20%" width="140%" height="140%">
@@ -124,11 +130,11 @@ export default function WorkflowGraph({ activeAgent, currentStep, status }: Work
             }`}
           />
 
-          {/* Planner -> Memory */}
+          {/* Planner -> Financial */}
           <path
-            d={`M ${coords.planner.x} ${coords.planner.y} L ${coords.memory.x} ${coords.memory.y}`}
+            d={`M ${coords.planner.x} ${coords.planner.y} L ${coords.financial.x} ${coords.financial.y}`}
             className={`stroke-2 fill-none transition-colors duration-500 ${
-              activeAgent === "Memory Agent" && currentStep === 2
+              activeAgent === "Financial Agent" 
                 ? "stroke-cyan-400 animate-dash" 
                 : plannerState === "completed" 
                 ? "stroke-green-800" 
@@ -136,16 +142,29 @@ export default function WorkflowGraph({ activeAgent, currentStep, status }: Work
             }`}
           />
 
-          {/* Researcher -> Memory */}
+          {/* Planner -> Content */}
           <path
-            d={`M ${coords.researcher.x} ${coords.researcher.y} L ${coords.memory.x} ${coords.memory.y}`}
+            d={`M ${coords.planner.x} ${coords.planner.y} L ${coords.content.x} ${coords.content.y}`}
             className={`stroke-2 fill-none transition-colors duration-500 ${
-              activeAgent === "Memory Agent" && currentStep === 4
+              activeAgent === "Content Agent" 
                 ? "stroke-cyan-400 animate-dash" 
-                : researcherState === "completed" 
+                : plannerState === "completed" 
                 ? "stroke-green-800" 
                 : "stroke-gray-800"
             }`}
+          />
+
+          {/* Planner -> Memory (Step 2 Pull) */}
+          <path
+            d={`M ${coords.planner.x} ${coords.planner.y} Q ${(coords.planner.x + coords.memory.x)/2} 290 ${coords.memory.x} ${coords.memory.y}`}
+            className={`stroke-2 fill-none stroke-dashed transition-colors duration-500 ${
+              activeAgent === "Memory Agent" && currentStep === 2
+                ? "stroke-cyan-400 animate-dash" 
+                : plannerState === "completed" 
+                ? "stroke-green-800" 
+                : "stroke-gray-800"
+            }`}
+            style={{ strokeDasharray: "4,4" }}
           />
 
           {/* Researcher -> Reviewer */}
@@ -160,13 +179,37 @@ export default function WorkflowGraph({ activeAgent, currentStep, status }: Work
             }`}
           />
 
-          {/* Memory -> Reviewer */}
+          {/* Financial -> Reviewer */}
           <path
-            d={`M ${coords.memory.x} ${coords.memory.y} L ${coords.reviewer.x} ${coords.reviewer.y}`}
+            d={`M ${coords.financial.x} ${coords.financial.y} L ${coords.reviewer.x} ${coords.reviewer.y}`}
             className={`stroke-2 fill-none transition-colors duration-500 ${
-              activeAgent === "Memory Agent" && currentStep === 6
+              activeAgent === "Reviewer Agent" 
                 ? "stroke-cyan-400 animate-dash" 
-                : memoryState === "completed" 
+                : financialState === "completed" 
+                ? "stroke-green-800" 
+                : "stroke-gray-800"
+            }`}
+          />
+
+          {/* Content -> Reviewer */}
+          <path
+            d={`M ${coords.content.x} ${coords.content.y} L ${coords.reviewer.x} ${coords.reviewer.y}`}
+            className={`stroke-2 fill-none transition-colors duration-500 ${
+              activeAgent === "Reviewer Agent" 
+                ? "stroke-cyan-400 animate-dash" 
+                : contentState === "completed" 
+                ? "stroke-green-800" 
+                : "stroke-gray-800"
+            }`}
+          />
+
+          {/* Reviewer -> Memory (Step 7 Index) */}
+          <path
+            d={`M ${coords.reviewer.x} ${coords.reviewer.y} L ${coords.memory.x} ${coords.memory.y}`}
+            className={`stroke-2 fill-none transition-colors duration-500 ${
+              activeAgent === "Memory Agent" && currentStep === 7
+                ? "stroke-cyan-400 animate-dash" 
+                : reviewerState === "completed" 
                 ? "stroke-green-800" 
                 : "stroke-gray-800"
             }`}
@@ -176,53 +219,79 @@ export default function WorkflowGraph({ activeAgent, currentStep, status }: Work
           
           {/* Node 1: Planner */}
           <g transform={`translate(${coords.planner.x}, ${coords.planner.y})`} className="cursor-pointer">
-            <circle r="32" className={`transition-all duration-500 ${getNodeStyles(plannerState).circle}`} filter={plannerState === "active" ? "url(#glow-cyan-filter)" : ""} />
-            <foreignObject x="-16" y="-16" width="32" height="32">
+            <circle r="26" className={`transition-all duration-500 ${getNodeStyles(plannerState).circle}`} filter={plannerState === "active" ? "url(#glow-cyan-filter)" : ""} />
+            <foreignObject x="-13" y="-13" width="26" height="26">
               <div className="w-full h-full flex items-center justify-center">
-                <Brain className={`w-6 h-6 ${getNodeStyles(plannerState).icon}`} />
+                <Brain className={`w-5 h-5 ${getNodeStyles(plannerState).icon}`} />
               </div>
             </foreignObject>
-            <text y="48" textAnchor="middle" className={`text-[10px] font-mono tracking-widest uppercase transition-colors duration-500 ${getNodeStyles(plannerState).text}`}>
+            <text y="40" textAnchor="middle" className={`text-[9px] font-mono tracking-widest uppercase transition-colors duration-500 ${getNodeStyles(plannerState).text}`}>
               Planner
             </text>
           </g>
 
           {/* Node 2: Researcher */}
           <g transform={`translate(${coords.researcher.x}, ${coords.researcher.y})`}>
-            <circle r="32" className={`transition-all duration-500 ${getNodeStyles(researcherState).circle}`} filter={researcherState === "active" ? "url(#glow-cyan-filter)" : ""} />
-            <foreignObject x="-16" y="-16" width="32" height="32">
+            <circle r="26" className={`transition-all duration-500 ${getNodeStyles(researcherState).circle}`} filter={researcherState === "active" ? "url(#glow-cyan-filter)" : ""} />
+            <foreignObject x="-13" y="-13" width="26" height="26">
               <div className="w-full h-full flex items-center justify-center">
-                <Search className={`w-6 h-6 ${getNodeStyles(researcherState).icon}`} />
+                <Search className={`w-5 h-5 ${getNodeStyles(researcherState).icon}`} />
               </div>
             </foreignObject>
-            <text y="48" textAnchor="middle" className={`text-[10px] font-mono tracking-widest uppercase transition-colors duration-500 ${getNodeStyles(researcherState).text}`}>
-              Researcher
+            <text y="40" textAnchor="middle" className={`text-[9px] font-mono tracking-widest uppercase transition-colors duration-500 ${getNodeStyles(researcherState).text}`}>
+              Research
             </text>
           </g>
 
-          {/* Node 3: Memory */}
-          <g transform={`translate(${coords.memory.x}, ${coords.memory.y})`}>
-            <circle r="32" className={`transition-all duration-500 ${getNodeStyles(memoryState).circle}`} filter={memoryState === "active" ? "url(#glow-cyan-filter)" : ""} />
-            <foreignObject x="-16" y="-16" width="32" height="32">
+          {/* Node 3: Financial */}
+          <g transform={`translate(${coords.financial.x}, ${coords.financial.y})`}>
+            <circle r="26" className={`transition-all duration-500 ${getNodeStyles(financialState).circle}`} filter={financialState === "active" ? "url(#glow-cyan-filter)" : ""} />
+            <foreignObject x="-13" y="-13" width="26" height="26">
               <div className="w-full h-full flex items-center justify-center">
-                <Database className={`w-6 h-6 ${getNodeStyles(memoryState).icon}`} />
+                <TrendingUp className={`w-5 h-5 ${getNodeStyles(financialState).icon}`} />
               </div>
             </foreignObject>
-            <text y="48" textAnchor="middle" className={`text-[10px] font-mono tracking-widest uppercase transition-colors duration-500 ${getNodeStyles(memoryState).text}`}>
-              Memory
+            <text y="40" textAnchor="middle" className={`text-[9px] font-mono tracking-widest uppercase transition-colors duration-500 ${getNodeStyles(financialState).text}`}>
+              Financial
             </text>
           </g>
 
-          {/* Node 4: Reviewer */}
+          {/* Node 4: Content */}
+          <g transform={`translate(${coords.content.x}, ${coords.content.y})`}>
+            <circle r="26" className={`transition-all duration-500 ${getNodeStyles(contentState).circle}`} filter={contentState === "active" ? "url(#glow-cyan-filter)" : ""} />
+            <foreignObject x="-13" y="-13" width="26" height="26">
+              <div className="w-full h-full flex items-center justify-center">
+                <PenTool className={`w-5 h-5 ${getNodeStyles(contentState).icon}`} />
+              </div>
+            </foreignObject>
+            <text y="40" textAnchor="middle" className={`text-[9px] font-mono tracking-widest uppercase transition-colors duration-500 ${getNodeStyles(contentState).text}`}>
+              Content
+            </text>
+          </g>
+
+          {/* Node 5: Reviewer */}
           <g transform={`translate(${coords.reviewer.x}, ${coords.reviewer.y})`}>
-            <circle r="32" className={`transition-all duration-500 ${getNodeStyles(reviewerState).circle}`} filter={reviewerState === "active" ? "url(#glow-cyan-filter)" : ""} />
-            <foreignObject x="-16" y="-16" width="32" height="32">
+            <circle r="26" className={`transition-all duration-500 ${getNodeStyles(reviewerState).circle}`} filter={reviewerState === "active" ? "url(#glow-cyan-filter)" : ""} />
+            <foreignObject x="-13" y="-13" width="26" height="26">
               <div className="w-full h-full flex items-center justify-center">
-                <ShieldCheck className={`w-6 h-6 ${getNodeStyles(reviewerState).icon}`} />
+                <ShieldCheck className={`w-5 h-5 ${getNodeStyles(reviewerState).icon}`} />
               </div>
             </foreignObject>
-            <text y="48" textAnchor="middle" className={`text-[10px] font-mono tracking-widest uppercase transition-colors duration-500 ${getNodeStyles(reviewerState).text}`}>
+            <text y="40" textAnchor="middle" className={`text-[9px] font-mono tracking-widest uppercase transition-colors duration-500 ${getNodeStyles(reviewerState).text}`}>
               Reviewer
+            </text>
+          </g>
+
+          {/* Node 6: Memory */}
+          <g transform={`translate(${coords.memory.x}, ${coords.memory.y})`}>
+            <circle r="26" className={`transition-all duration-500 ${getNodeStyles(memoryState).circle}`} filter={memoryState === "active" ? "url(#glow-cyan-filter)" : ""} />
+            <foreignObject x="-13" y="-13" width="26" height="26">
+              <div className="w-full h-full flex items-center justify-center">
+                <Database className={`w-5 h-5 ${getNodeStyles(memoryState).icon}`} />
+              </div>
+            </foreignObject>
+            <text y="40" textAnchor="middle" className={`text-[9px] font-mono tracking-widest uppercase transition-colors duration-500 ${getNodeStyles(memoryState).text}`}>
+              Memory
             </text>
           </g>
         </svg>

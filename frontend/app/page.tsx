@@ -75,6 +75,8 @@ export default function Home() {
         const formatLogSender = (evt: string) => {
           if (evt.includes("memory")) return "Memory Agent";
           if (evt.includes("research")) return "Research Agent";
+          if (evt.includes("financial")) return "Financial Agent";
+          if (evt.includes("content")) return "Content Agent";
           if (evt.includes("review")) return "Reviewer Agent";
           if (evt.includes("tasks")) return "Planner Agent";
           return "System";
@@ -143,6 +145,32 @@ export default function Home() {
                 timestamp,
                 sender: "Research Agent",
                 message: "Competitor positioning analysis completed. Dispatching to memory sync.",
+                level: "info"
+              }
+            ]);
+            break;
+
+          case "financial_completed":
+            setTasks(data.tasks);
+            setLogs((prev) => [
+              ...prev,
+              {
+                timestamp,
+                sender: "Financial Agent",
+                message: "Financial and monetization models compiled. Dispatching to memory sync.",
+                level: "info"
+              }
+            ]);
+            break;
+
+          case "content_completed":
+            setTasks(data.tasks);
+            setLogs((prev) => [
+              ...prev,
+              {
+                timestamp,
+                sender: "Content Agent",
+                message: "Acquisition copywriting and branding assets drafted. Dispatching to memory sync.",
                 level: "info"
               }
             ]);

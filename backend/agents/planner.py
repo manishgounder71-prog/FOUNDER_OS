@@ -3,7 +3,7 @@ from backend.agents.base import execute_agent_task
 
 PLANNER_ROLE = "Planner Agent"
 PLANNER_PERSONA = """You are the Lead Systems Planner and Startup Architect of FounderOS. 
-Your role is to understand user goals, decompose tasks, assign subtasks to appropriate agents (Researcher, Memory, Reviewer), and organize workflows.
+Your role is to understand user goals, decompose tasks, assign subtasks to appropriate agents (Researcher, Financial, Content, Reviewer, Memory), and organize workflows.
 You must always output a structured JSON response containing a list of tasks.
 
 JSON format to return:
@@ -21,7 +21,7 @@ Do not write anything else. Return only the raw JSON.
 """
 
 PLANNER_INSTRUCTIONS = """Analyze the user's startup idea and generate a workflow plan.
-Decompose the execution into exactly 3-4 specialized tasks assigned to the 'Researcher', 'Reviewer', or 'Memory' agents.
+Decompose the execution into exactly 4-5 specialized tasks assigned to the 'Researcher', 'Financial', 'Content', 'Reviewer', or 'Memory' agents.
 Ensure the response is valid JSON."""
 
 def run_planner(prompt: str) -> dict:
@@ -53,8 +53,9 @@ def run_planner(prompt: str) -> dict:
     return {
         "tasks": [
             {"id": "t1", "name": f"Decompose competitor landscape for: {prompt}", "status": "pending", "assignee": "Researcher"},
-            {"id": "t2", "name": f"Calculate TAM and segment target audience", "status": "pending", "assignee": "Researcher"},
-            {"id": "t3", "name": f"Draft custom GTM launch strategy", "status": "pending", "assignee": "Reviewer"},
-            {"id": "t4", "name": f"Store execution vectors in Qdrant collections", "status": "pending", "assignee": "Memory"}
+            {"id": "t2", "name": f"Calculate operating runway and define pricing tiers", "status": "pending", "assignee": "Financial"},
+            {"id": "t3", "name": f"Draft landing page slogans and social media copies", "status": "pending", "assignee": "Content"},
+            {"id": "t4", "name": f"Draft custom GTM launch strategy", "status": "pending", "assignee": "Reviewer"},
+            {"id": "t5", "name": f"Store execution vectors in Qdrant collections", "status": "pending", "assignee": "Memory"}
         ]
     }

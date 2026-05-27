@@ -1,7 +1,6 @@
 "use client";
-
 import React, { useEffect, useRef } from "react";
-import { Terminal, Brain, Search, Database, ShieldCheck, Server, AlertCircle } from "lucide-react";
+import { Terminal, Brain, Search, Database, ShieldCheck, Server, AlertCircle, TrendingUp, PenTool } from "lucide-react";
 
 interface LogEntry {
   timestamp: string;
@@ -37,6 +36,18 @@ export default function AgentFeed({ logs }: AgentFeedProps) {
           icon: <Search className="w-3.5 h-3.5 text-amber-400" />,
           colorClass: "text-amber-300",
           bgClass: "bg-amber-500/10 border-amber-500/20"
+        };
+      case "Financial Agent":
+        return {
+          icon: <TrendingUp className="w-3.5 h-3.5 text-emerald-400" />,
+          colorClass: "text-emerald-300",
+          bgClass: "bg-emerald-500/10 border-emerald-500/20"
+        };
+      case "Content Agent":
+        return {
+          icon: <PenTool className="w-3.5 h-3.5 text-orange-400" />,
+          colorClass: "text-orange-300",
+          bgClass: "bg-orange-500/10 border-orange-500/20"
         };
       case "Memory Agent":
         return {
