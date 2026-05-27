@@ -22,3 +22,5 @@ frontend/build/
 *.log
 .system_generated/
 .qodo/
+
+.vercel
