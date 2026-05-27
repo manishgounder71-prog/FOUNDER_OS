@@ -124,6 +124,20 @@ def get_contextual_mock_response(role: str, input_data: str) -> str:
         niche = "notes"
     elif "pricing" in normalized_startup or "saas" in normalized_startup or "monetize" in normalized_startup:
         niche = "saas"
+    elif (
+        "shop" in normalized_startup
+        or "store" in normalized_startup
+        or "e-commerce" in normalized_startup
+        or "ecommerce" in normalized_startup
+        or "retail" in normalized_startup
+        or "cart" in normalized_startup
+        or "buy" in normalized_startup
+        or "purchase" in normalized_startup
+        or "checkout" in normalized_startup
+        or "discount" in normalized_startup
+        or "deal" in normalized_startup
+    ):
+        niche = "shopping"
 
     # Mocks by Niche & Role
     mocks = {
@@ -337,6 +351,210 @@ A B2B SaaS dashboard that connects to Stripe/Paddle and uses a custom agent simu
 - **Step 1**: Sync Stripe API transaction history.
 - **Step 2**: Implement Monte Carlo billing simulations.
 - **Step 3**: Launch recommendations engine dashboard."""
+        },
+        "shopping": {
+            "Planner Agent": {
+                "tasks": [
+                    {"id": "t1", "name": "Map AI Shopping Assistant Competitors (Honey, Klarna, Shop)", "status": "pending", "assignee": "Researcher"},
+                    {"id": "t2", "name": "Model affiliate commissions, API costs, and cart conversion math", "status": "pending", "assignee": "Financial"},
+                    {"id": "t3", "name": "Draft browser extension/app copy and viral TikTok hook script", "status": "pending", "assignee": "Content"},
+                    {"id": "t4", "name": "Synthesize 4-week product rollout plan & partner outreach play", "status": "pending", "assignee": "Reviewer"},
+                    {"id": "t5", "name": "Store e-commerce metadata & vectors in Qdrant collections", "status": "pending", "assignee": "Memory"}
+                ]
+            },
+            "Research Agent": """### Market & Competitor Intelligence Report: AI Shopping Assistant
+**Target Market**: Gen Z and Millennial mobile shoppers looking for automated discount finding, price comparison, and personalized style recommendations.
+
+#### 1. Competitor Benchmarking
+| Competitor | Strengths | Weaknesses | Our Opportunity |
+| :--- | :--- | :--- | :--- |
+| **Honey (PayPal)** | Massive merchant network, auto-applies discount codes. | Desktop-heavy extension, poor AI personalization, generic suggestions. | Native mobile voice-first app with LLM style advisory. |
+| **Klarna** | Excellent BNPL integration, curated collections, large user base. | Biased towards BNPL partners, lacks cross-store unified cart checkout. | Unbiased affiliate routing and headless automated checkout. |
+| **Shop (Shopify)** | Seamless order tracking, direct checkout with Shop Pay. | Restricted to Shopify merchants, search functionality is limited. | Aggregates all web stores (Shopify, WooCommerce, Magento) via web scrapers. |
+
+#### 2. E-Commerce Reality Check & Risks
+- **Affiliate Fraud & Ad Blockers**: Heavy reliance on affiliate networks (e.g., Impact, ShareASale) means ad blockers can strip tracking IDs, losing up to 25% of revenue.
+- **Headless Checkout Friction**: Automating credit card injection across non-standard checkouts requires complex robotic process automation (RPA), which has high fail rates.
+- **Merchant API Blocks**: Giants like Amazon actively block headless scraping. The solution must rely on client-side sandboxed browser execution.""",
+            "Financial Agent": """### Financial, Monetization & Cost Blueprint: AI Shopping Assistant
+**Primary Monetization**: Affiliate commissions (averaging 4-8% per sale) + Premium Style Advisory Tier ($5/mo).
+
+#### 1. Unit Economics Model
+- **Average Order Value (AOV)**: $65.00
+- **Average Affiliate Take Rate**: 5% ($3.25 revenue per transaction)
+- **Customer Acquisition Cost (CAC)**: Target $8.50 via TikTok organic and micro-influencers.
+- **LTV / CAC Ratio**: Target 3.5x based on repeat shopping behavior (average 9 purchases/user/year).
+
+#### 2. Operational Cost Projections (Monthly for 10k users)
+| Expense Category | Monthly Cost | Details |
+| :--- | :--- | :--- |
+| **Inference (Gemini/OpenAI)** | $450.00 | Personalized recommendation API requests (approx. 20/user/mo). |
+| **Web Scraping & Proxy APIs** | $250.00 | Fetching real-time pricing and stock status without IP bans. |
+| **Cloud Hosting & DB** | $85.00 | Local Qdrant deployment + Node.js background worker servers on AWS. |
+| **Total Operating Costs** | **$785.00** | Net profit margin of ~81% at 10k monthly active users.""",
+            "Content Agent": """### Copywriting & Growth Marketing Copy: AI Shopping Assistant
+
+#### 1. Core Branding & Positioning
+- **Primary Slogan**: "Your personal shopper, powered by AI, working across the entire web."
+- **Hook**: Stop hunting for promo codes. Let your assistant do the buying.
+- **Value Proposition**: The first voice-activated shopping app that compares prices across 1,000+ stores, automatically applies active discounts, and executes checkouts in one tap.
+
+#### 2. Mobile App App Store Copy Layout
+- **Hero Title**: "Shop smarter. Save instantly."
+- **Description**: "Just say what you're looking for, compare live deals from Amazon to boutique stores, get style recommendations from AI stylists, and check out securely."
+
+#### 3. Social Growth Hook Script (TikTok Launch)
+- **Visual**: Screen recording showing user speaking: *"Find me a green linen shirt under $50"* and the app instantly showing a comparison table.
+- **Voiceover**: "Why is nobody talking about this app? I just saved $20 in 3 seconds. Watch this..."
+- **Launch Thread**: Five-tweet breakdown of how e-commerce stores manipulate pricing and how to beat them.""",
+            "Memory Agent": "Saved AI shopping assistant product specs and competitive pricing matrices into Qdrant collections `startup_ideas` and `market_research`.",
+            "Reviewer Agent": """# FounderOS Executive Summary: AI Shopping Assistant — Complete Launch Strategy
+**Tagline**: "The entire web, in a single tap."
+
+---
+
+## 1. Product Vision & Problem Statement
+
+The global e-commerce market exceeded **$5.8 trillion in 2023** (Statista) and is growing at 9% YoY. Yet the actual shopping experience is still fundamentally broken:
+
+- Shoppers visit an average of **4.2 different sites** before making a purchase decision.
+- **88% of online carts are abandoned**, often because shoppers lack price confidence.
+- Discount-hunting tools like **Honey** are passive — they only apply codes at checkout, but don't help users *find* or *compare* products across stores.
+- AI personalization in existing tools is either non-existent (Honey) or biased toward partners (Klarna BNPL).
+
+**The Opportunity**: Build the first truly *proactive*, voice-first AI shopping agent that acts as an unbiased personal buyer — searching, comparing, styling, and checking out autonomously across the entire open web.
+
+**Real-world Example**: A user says: *"Find me a waterproof hiking boot under $120 with 4+ stars that ships before Friday."* The AI queries 50+ stores simultaneously, surfaces a ranked shortlist with price history charts, and completes purchase with one tap via Apple Pay — in under 15 seconds.
+
+---
+
+## 2. Competitive Landscape — Deep Benchmark
+
+| Metric | Honey (PayPal) | Klarna | Shop (Shopify) | **AI Shopping Assistant** |
+| :--- | :--- | :--- | :--- | :--- |
+| **AI Personalization** | ❌ None | ⚠️ Low (BNPL-biased) | ⚠️ Basic recommendations | ✅ Full LLM Style Coach |
+| **Voice / Natural Language Search** | ❌ No | ❌ No | ❌ No | ✅ Yes — Omi voice + text |
+| **Cross-Store Unified Search** | ⚠️ Coupon codes only | ⚠️ Curated partners | ❌ Shopify-only | ✅ Unlimited (scraping + APIs) |
+| **Automated Checkout** | ⚠️ Code auto-apply only | ✅ BNPL checkout | ✅ Shop Pay | ✅ 1-click headless checkout |
+| **Price History Tracking** | ✅ Yes (camelcamelcamel API) | ❌ No | ❌ No | ✅ Yes (90-day history graph) |
+| **Revenue Model Transparency** | ❌ Affiliate (hidden) | ❌ BNPL margin | ❌ Shopify ecosystem lock | ✅ Transparent affiliate + Premium |
+| **Wearable Integration** | ❌ No | ❌ No | ❌ No | ✅ Omi webhook voice triggers |
+
+**Key Takeaway**: Every competitor above solves *one part* of the shopping journey. This product solves *the entire funnel* — from discovery to checkout — using AI as the unified layer.
+
+---
+
+## 3. Business Model & Monetization Architecture
+
+### Revenue Stream 1 — Affiliate Commissions (Primary)
+- Partner networks: **Impact Radius**, **ShareASale**, **CJ Affiliate**, **Amazon Associates** (up to 10%), **Rakuten**.
+- Average commission rate across niches: **4–8%** of Gross Merchandise Value (GMV).
+- Example: 10,000 MAU × 9 orders/year × $65 AOV × 6% = **$351,000 annual ARR** from affiliate alone.
+
+### Revenue Stream 2 — Style Advisory Subscription
+| Tier | Price | Features |
+| :--- | :--- | :--- |
+| **Free** | $0/mo | 5 AI searches/day, manual checkout, basic filters |
+| **Shopper Pro** | $4.99/mo | Unlimited voice searches, automated checkout, price-drop alerts |
+| **Style Club** | $12.99/mo | Personal AI stylist, curated weekly drops, size profile memory, VIP brand deals |
+
+### Unit Economics Snapshot (at 10,000 MAU)
+| Metric | Value |
+| :--- | :--- |
+| Blended ARPU (affiliate + sub) | $2.93/mo |
+| Monthly Revenue | $29,300 |
+| Operating Costs | $785/mo |
+| **Net Margin** | **~97%** |
+| CAC (organic TikTok) | $8.50 |
+| LTV (3-year) | $105.48 |
+| **LTV:CAC Ratio** | **12.4x** |
+
+---
+
+## 4. Go-To-Market — 4-Week Precision Launch Playbook
+
+### Week 1: Waitlist & Anticipation Engine
+- Launch a **high-conversion landing page** with a live "How much could you save?" calculator (uses real Amazon/Google Shopping API data).
+- Run a **referral waitlist** (SparkLoop or Viral Loops): each referral unlocks 3 months of Shopper Pro free.
+- Target **r/frugal**, **r/deals**, **r/malefashionadvice** with organic posts showing real savings screenshots.
+- **Goal**: 2,000+ waitlist sign-ups.
+
+### Week 2: Viral TikTok & Shorts Blitz
+- Post 3 videos per day using the hook: *"POV: Your AI bought you this for $38 less than Amazon"*.
+- Partner with **3 micro-influencers** (50k–200k followers) in fashion, tech, and personal finance niches. Cost: $150–300 per post.
+- Organic benchmark: Honey's original Product Hunt video got 250k organic views in 48 hours with a similar format in 2012.
+- **Goal**: 100k+ TikTok views, 500+ app installs on Day 1.
+
+### Week 3: Micro-Influencer Seed Round
+- Onboard **15 fashion/lifestyle creators** with $100 in-app shopping credits each.
+- Create an **affiliate referral program** for influencers: they earn 2% of every purchase their followers make through their referral link.
+- Submit to **Product Hunt** for scheduling (target a Tuesday or Wednesday launch for maximum upvotes).
+- **Goal**: 1,500+ total installs, 300+ MAU engaged.
+
+### Week 4: App Store & Browser Extension Launch
+- Submit to Apple App Store + Google Play Store with ASO-optimized descriptions targeting keywords: "price comparison app", "AI shopping", "discount finder".
+- Launch a **Chrome/Firefox/Safari extension** that injects a floating AI assistant button on any e-commerce product page.
+- Pitch to **TechCrunch**, **The Verge**, and **Wired** under the angle: *"The app killing Honey by actually using AI"*.
+- **Goal**: 5,000+ total downloads, App Store Editorial consideration.
+
+---
+
+## 5. Technical Architecture
+
+```
+User Input (Voice via Omi / Text)
+    │
+    ▼
+[NLP Intent Parser] ← LLM (Gemini 1.5 Flash / GPT-4o)
+    │  Parses: product type, budget, style, urgency
+    │
+    ▼
+[Multi-Store Aggregator Engine]
+    ├── Shopify Storefront API (10,000+ stores)
+    ├── Amazon Product Advertising API
+    ├── Google Shopping API
+    ├── Headless browser scraping (Playwright + residential proxies)
+    │
+    ▼
+[Ranking & Personalization Engine]
+    ├── Vector similarity search — Qdrant (user style profile vs. products)
+    ├── Price history scoring (90-day trend via camelcamelcamel API)
+    ├── Review sentiment analysis (LLM-summarized)
+    │
+    ▼
+[Checkout Automation]
+    ├── Apple Pay / Google Pay / Stripe Link
+    ├── Autofill RPA for non-standard checkouts (Playwright)
+    │
+    ▼
+[Memory Layer — Qdrant]
+    └── Stores: size profile, style history, brand preferences, budget signals
+```
+
+---
+
+## 6. Reality Check — Honest Risk Assessment
+
+| Risk | Severity | Probability | Mitigation |
+| :--- | :--- | :--- | :--- |
+| **Amazon API blocking** | 🔴 High | 🔴 Certain | Use Amazon Product Advertising API (official); limit scraping to non-Amazon stores. |
+| **Affiliate link stripping by ad blockers** | 🟠 Medium | 🟡 ~25% of users | Use server-side affiliate redirect (instead of client-side JS injection). |
+| **Headless checkout failures** | 🟠 Medium | 🟡 15–30% fail rate | Fallback to redirect-to-store for complex checkouts. Prioritize Apple Pay / Google Pay. |
+| **Merchant T&C violations** | 🔴 High | 🟡 Moderate | Legal review of terms for top 50 target merchants. Focus on API-first integrations. |
+| **User trust & card data fears** | 🟠 Medium | 🟠 High initially | Never store card data. Route 100% through Apple/Google/Stripe tokenization. SOC 2 compliance roadmap. |
+| **LLM hallucination on product details** | 🟡 Low | 🟠 Moderate | Use structured API data as ground truth; LLM only writes summaries/recommendations, not facts. |
+
+**Bottom Line**: This is a high-margin, high-virality opportunity in a proven market. The core risks are solvable with smart API choices and a phased rollout. The winning move is to launch with a focused niche (e.g., fashion + home goods) before expanding to all retail categories.
+
+---
+
+## 7. 90-Day Post-Launch Milestones
+
+| Milestone | Target | KPI |
+| :--- | :--- | :--- |
+| End of Month 1 | 5,000 MAU | D7 Retention ≥ 35% |
+| End of Month 2 | 15,000 MAU | Avg. session ≥ 3 searches |
+| End of Month 3 | 35,000 MAU | Affiliate GMV ≥ $50,000 |"""
         },
         "generic": {
             "Planner Agent": {
