@@ -6,6 +6,32 @@ FounderOS is a production-grade AI cockpit designed for solo founders. It integr
 
 ---
 
+## 💡 The Real-World Problem & Solution
+
+### The Problem
+Solo founders face massive friction when launching a startup:
+- **Resource Constraints**: Hiring research, financial, and marketing experts is prohibitively expensive.
+- **Context Switching**: Jumping between spreadsheets, Google Docs, market research reports, and copy drafts kills productivity.
+- **Lost Inspiration**: Great ideas spoken or thought during daily routines (e.g. walks, commutes) are rarely captured or immediately structured into plans.
+
+### The Solution
+FounderOS introduces a **voice-first, multi-agent operating system** for solo founders:
+1. **Passive/Active Voice Intake**: Captures spoken thoughts using **Omi wearable telemetry** or direct mic inputs.
+2. **Autonomous Decomposition**: Instantly splits the founder's directive into multiple tasks (competitor search, financial modeling, GTM marketing, copywriting, memory indexing).
+3. **Structured Multi-Agent Pipeline**: Specialized Lyzr agents execute the tasks asynchronously in worker threads.
+4. **Persistent Vector Memory**: Saves execution outputs in local **Qdrant vector databases** to allow future query matching, context retrieval, and semantic knowledge graph updates.
+
+---
+
+## 🚀 What Can You Do with FounderOS?
+- **Create Launch Strategies**: Decompose startup ideas into actionable 4-week rollouts.
+- **Competitor Benchmarking**: Conduct automated profiles comparing players (e.g., Quizlet vs Anki, Notion vs Obsidian).
+- **Run Pricing Simulations**: Compute operational cost metrics, server projections, and design seat-capped or usage-based monetization tiers.
+- **Draft Branding & Copy Assets**: Create landing page copy, social media launch threads, and app store copy.
+- **Persistent Semantic Search**: Retrieve past documents and conversation histories based on semantic similarity.
+
+---
+
 ## 🛠️ Mandatory Stack Integration
 
 1. **Omi (Voice Layer)**: Handles speech capture and transcriptions. Features a simulated physical webhook receiver (`/api/voice/omi-webhook`) that handles background transcription pushes from Omi wearable devices.
