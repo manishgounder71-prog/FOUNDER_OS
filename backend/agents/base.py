@@ -125,6 +125,20 @@ def get_contextual_mock_response(role: str, input_data: str) -> str:
     elif "pricing" in normalized_startup or "saas" in normalized_startup or "monetize" in normalized_startup:
         niche = "saas"
     elif (
+        "fintech" in normalized_startup
+        or "finance" in normalized_startup
+        or "payment" in normalized_startup
+        or "banking" in normalized_startup
+        or "neobank" in normalized_startup
+        or "crypto" in normalized_startup
+        or "wallet" in normalized_startup
+        or "invest" in normalized_startup
+        or "lending" in normalized_startup
+        or "insurance" in normalized_startup
+        or "insurtech" in normalized_startup
+    ):
+        niche = "fintech"
+    elif (
         "shop" in normalized_startup
         or "store" in normalized_startup
         or "e-commerce" in normalized_startup
@@ -498,7 +512,182 @@ A B2B SaaS dashboard that connects to Stripe/Paddle and uses a custom agent simu
 3. Partner with SaaS accelerators (Y Combinator, Techstars) for pilot customers
 4. Publish annual SaaS pricing benchmark report as authority content"""
         },
+        "fintech": {
+            "Planner Agent": {
+                "tasks": [
+                    {"id": "t1", "name": "Benchmark Fintech Competitors (Revolut, Stripe, Plaid, Wise)", "status": "pending", "assignee": "Researcher"},
+                    {"id": "t2", "name": "Model unit economics, CAC, LTV & regulatory compliance costs", "status": "pending", "assignee": "Financial"},
+                    {"id": "t3", "name": "Draft fintech landing page copy & Product Hunt launch assets", "status": "pending", "assignee": "Content"},
+                    {"id": "t4", "name": "Compile Fintech GTM Playbook & Regulatory Go-Live Plan", "status": "pending", "assignee": "Reviewer"},
+                    {"id": "t5", "name": "Index fintech strategy docs into Qdrant vector database", "status": "pending", "assignee": "Memory"}
+                ]
+            },
+            "Research Agent": """### Market Research Report: Fintech Startup
+
+**Target Market**: Underserved consumers and SMBs seeking faster, cheaper, and smarter financial services — payments, lending, savings, insurance, or crypto.
+
+#### 1. Market Sizing & Growth Projections
+- **TAM**: $340B global fintech market by 2030 (CAGR 23.4%)
+- **SAM**: $98B digital payments and neobanking segment
+- **SOM**: $3.2B addressable via US underbanked population (63M Americans) and digital-first SMBs
+- **Growth**: Mobile payment volume up 28% YoY; embedded finance APIs growing 35% CAGR
+
+#### 2. Key Competitors
+| Competitor | Strengths | Weaknesses | Market Share |
+| :--- | :--- | :--- | :--- |
+| Revolut | 40M users, multi-currency, crypto | Complex compliance, thin margins | ~18% neobank |
+| Wise | Transparent FX, trusted brand | Narrow use-case (transfers only) | ~12% cross-border |
+| Stripe | Best-in-class developer APIs | SMB pricing opaque, no retail banking | ~22% payments infra |
+| Plaid | Data connectivity leader | Privacy concerns, bank pushback | ~30% open banking |
+| Chime | Mass-market neobank, no fees | No credit products, limited features | ~15% neobank US |
+
+#### 3. Customer Pain Points
+- 63M Americans remain unbanked or underbanked with no access to fair credit
+- SMBs wait 3-5 days for payment settlements — cash flow crisis for small operators
+- International transfers still cost 3-6% with opaque exchange rates
+- Traditional banks charge $35 overdraft fees while AI-powered alternatives don't exist yet
+
+#### 4. Industry Trends
+- Embedded finance: any app can now add financial services (BNPL, insurance, payroll)
+- Open Banking mandates (PSD2 in EU, FDX in US) unlocking data portability
+- AI-powered underwriting replacing FICO scoring for credit access
+- Real-time payment rails (FedNow, RTP) enabling instant settlement at zero marginal cost
+
+#### 5. Technology Landscape
+- **Core Banking**: Unit, Synapse, or Treasury Prime as BaaS infrastructure
+- **KYC/AML**: Persona, Alloy, or Jumio for identity verification
+- **Payments**: Stripe Connect or Adyen for multi-party payouts
+- **AI Underwriting**: Plaid income verification + ML credit models
+- **Compliance**: ComplyAdvantage for real-time transaction screening
+
+#### 6. Regulatory Landscape
+- Money Transmitter License (MTL) required in each US state
+- PCI-DSS Level 1 compliance for card processing
+- FinCEN registration and Bank Secrecy Act (BSA) compliance
+- SOC2 Type II certification expected by enterprise customers
+- CFPB oversight for consumer lending products
+
+#### 7. SWOT Analysis
+- **Strengths**: AI-powered personalization, low-overhead digital-first, real-time rails
+- **Weaknesses**: Heavy regulatory burden, requires bank sponsor partnerships
+- **Opportunities**: Embedded finance in non-financial apps, SMB underserved market
+- **Threats**: Big banks launching digital sub-brands, regulatory tightening""",
+            "Financial Agent": """### Financial & Monetization Blueprint: Fintech Startup
+**Monetization Strategy**: Interchange revenue + subscription SaaS tier + transaction fee spread.
+
+#### 1. Revenue Streams
+| Stream | Rate | Details |
+| :--- | :--- | :--- |
+| Card Interchange | 1.2–1.8% per transaction | Standard Visa/Mastercard debit interchange |
+| Premium Subscription | $9.99/mo | Advanced analytics, instant transfers, credit building |
+| FX Spread | 0.5% markup | Applied on international transfers above free tier |
+| B2B API Access | $299–$999/mo | Embedded finance APIs for developers and platforms |
+
+#### 2. Unit Economics
+- **CAC**: $18–$35 via social media + referral (industry avg $40–$80 for neobanks)
+- **LTV**: $420 over 3 years (avg $12/mo net revenue per active user)
+- **LTV/CAC Ratio**: 12x — highly capital-efficient at scale
+- **Payback Period**: 2.8 months
+
+#### 3. Cost Structure (Monthly at 10K MAU)
+| Expense | Monthly Cost | Details |
+| :--- | :--- | :--- |
+| BaaS Infrastructure (Unit/Synapse) | $2,400 | Core banking, card issuance, compliance |
+| KYC/AML Verification | $800 | ~$0.80/new user verified per month |
+| Cloud Infrastructure | $350 | AWS multi-AZ for 99.99% uptime SLA |
+| Compliance & Legal | $1,200 | Ongoing MTL filings and regulatory counsel |
+| **Total OpEx** | **$4,750** | Breakeven at ~400 paying subscribers |
+
+#### 4. Funding Strategy
+- Pre-seed: $500K–$1.5M angel round for regulatory setup + MVP
+- Seed: $3M–$8M for bank sponsor deal + GTM
+- Series A: $15M+ after PMF validation with >50K MAUs""",
+            "Content Agent": """### Growth Copywriting & Acquisition Assets: Fintech Startup
+
+#### 1. Core Positioning
+- **Hook**: Banking that works as fast as you do.
+- **Value Proposition**: The first AI-powered financial account that predicts cash flow gaps, automates savings, and builds your credit history — with zero hidden fees.
+- **Subheader**: Built for founders, freelancers, and SMBs who move faster than their bank.
+
+#### 2. Landing Page Copy Outline
+- **Hero Heading**: "Get paid faster. Spend smarter. Build credit instantly."
+- **Subheading**: "Open your account in 3 minutes. No SSN delays, no $35 overdraft fees, no fine print."
+- **CTA**: "Start for Free — No Credit Check"
+- **Section: The Problem**: "Your bank was built in 1985. It still acts like it."
+- **Section: Features**: Real-time payments • AI cash flow forecasting • Instant virtual cards • Credit building with every purchase
+
+#### 3. Referral & Viral Growth Program
+- **Mechanic**: "Give $10, Get $10" — $10 account credit for every friend who opens and makes their first transaction
+- **Goal**: 35% of new users via referral (industry benchmark for top neobanks)
+
+#### 4. X/Twitter Launch Thread
+- Tweet 1: "We're launching a fintech startup that actually makes sense. Here's the 10-tweet breakdown of everything wrong with traditional banking and how we're fixing it 🧵"
+- Tweet 2: "63 million Americans are underbanked. Their credit scores are punished for being poor. We built AI underwriting that doesn't use FICO."
+- Tweet 5: "Zero overdraft fees. Real-time FedNow settlement. AI that texts you before you overdraft. It's 2025, this should be the standard." """,
+            "Memory Agent": "Saved fintech competitor benchmarks, regulatory compliance matrix, and GTM playbook into Qdrant collections `market_research`, `strategies`, and `startup_ideas`.",
+            "Reviewer Agent": """# FounderOS Executive Summary: Fintech Startup Launch Strategy
+**Tagline**: "The financial OS built for the speed of modern business."
+
+## 1. Executive Summary
+An AI-powered neobank and embedded finance platform targeting underbanked consumers and digitally-native SMBs. Uses real-time payment rails (FedNow/RTP), AI-powered underwriting, and zero-fee account infrastructure to deliver fair, fast financial services. The global fintech market reaches $340B by 2030 at 23.4% CAGR — driven by open banking mandates, embedded finance adoption, and real-time payment infrastructure.
+
+## 2. Market Opportunity & Industry Trends
+- **TAM**: $340B global fintech market (2030 projection)
+- **SAM**: $98B digital payments and neobanking segment
+- **SOM**: $3.2B addressable via US underbanked population and digital-first SMBs
+- **Trends**: Embedded finance APIs growing 35% CAGR; real-time rails (FedNow) live in 2024; AI underwriting replacing FICO scoring
+
+## 3. Customer Pain Points & Value Proposition
+- **Pain**: 63M Americans unbanked/underbanked — excluded from fair credit markets
+- **Pain**: SMBs wait 3–5 days for payment settlement destroying cash flow
+- **Pain**: International transfers cost 3–6% with hidden FX markups
+- **Solution**: Zero-fee account with instant settlement, AI credit building, and embedded financial APIs for any platform
+
+## 4. Competitive Landscape
+| Competitor | Strengths | Weaknesses | Our Opportunity |
+| :--- | :--- | :--- | :--- |
+| Revolut | 40M users, crypto | Thin margins, EU-centric | US underbanked focus |
+| Chime | Mass market, no fees | No credit products | AI credit building |
+| Wise | Trusted FX brand | Transfers only | Full banking suite |
+| Stripe | Dev API leader | Not consumer-facing | Consumer + SMB hybrid |
+
+## 5. SWOT Analysis
+- **Strengths**: FedNow real-time rails, AI underwriting, zero-fee model, embedded finance APIs
+- **Weaknesses**: MTL licensing timeline (12–18 months), bank sponsor dependency
+- **Opportunities**: 63M underbanked Americans, SMB embedded finance, B2B API licensing
+- **Threats**: Big banks launching digital brands, CFPB regulatory changes, crypto volatility
+
+## 6. Technology Stack & Innovation
+- **Core Banking**: Unit or Treasury Prime (BaaS) for FDIC-insured accounts
+- **Payments**: FedNow + Stripe Connect for real-time settlement
+- **AI Layer**: LLM cash flow forecasting + ML credit underwriting (no FICO)
+- **KYC/AML**: Persona + ComplyAdvantage for real-time compliance screening
+- **Memory**: Qdrant vector DB for personalized financial behavior profiles
+
+## 7. Risk Assessment & Mitigation
+| Risk | Impact | Probability | Mitigation |
+| :--- | :--- | :--- | :--- |
+| Regulatory approval delays | High | High | Engage compliance counsel at Day 1, use BaaS sponsor bank |
+| Bank sponsor dependency | High | Medium | Multi-bank architecture, build proprietary charter roadmap |
+| Fraud & AML exposure | High | Medium | Real-time transaction screening + ML fraud models |
+| High CAC in competitive market | Medium | Medium | Referral program + employer embedded finance distribution |
+
+## 8. Go-To-Market Strategy
+- **Phase 1**: Waitlist launch targeting r/personalfinance, r/smallbusiness, and Twitter fintech community
+- **Phase 2**: Referral program — "Give $10, Get $10" to drive viral growth
+- **Phase 3**: SMB embedded finance APIs distributed through accounting software (QuickBooks, FreshBooks)
+- **Phase 4**: Series A raise targeting Andreessen Horowitz a16z fintech, QED Investors, Ribbit Capital
+- **Pricing**: Free account (interchange revenue) → Premium $9.99/mo → B2B API $299–$999/mo
+
+## 9. Core Recommendations
+1. Partner with a BaaS provider (Unit or Treasury Prime) to bypass 18-month charter process
+2. File Money Transmitter License in top 10 states simultaneously at launch
+3. Build referral viral loop before paid acquisition — target 35% referral-driven growth
+4. Launch B2B embedded finance API within 6 months of consumer product for dual revenue stream
+5. Publish AI underwriting methodology paper to establish credibility with regulators and press"""
+        },
         "shopping": {
+
             "Planner Agent": {
                 "tasks": [
                     {"id": "t1", "name": "Map AI Shopping Assistant Competitors (Honey, Klarna, Shop)", "status": "pending", "assignee": "Researcher"},
