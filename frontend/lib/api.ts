@@ -128,3 +128,19 @@ export async function transcribeAudio(audioBlob: Blob, mockPrompt?: string): Pro
   const data = await res.json();
   return data.transcript;
 }
+
+/**
+ * Saves a new vector memory directly inside Qdrant database.
+ */
+export async function saveMemory(collection: string, text: string, metadata?: Record<string, any>): Promise<string> {
+  const res = await fetch(`${BACKEND_URL}/api/memory/save`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ collection, text, metadata })
+  });
+  if (!res.ok) {
+    throw new Error(`Failed to save memory: ${res.statusText}`);
+  }
+  const data = await res.json();
+  return data.point_id;
+}

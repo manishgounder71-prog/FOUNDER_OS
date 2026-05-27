@@ -12,6 +12,7 @@ import HudMetrics from "@/components/hud-metrics";
 import AutonomousPlanningOverlay from "@/components/autonomous-planning-overlay";
 import BrainGraph from "@/components/brain-graph";
 import { BACKEND_URL, getTimeline, TimelineItem, Task, executeDirectiveResearch, simulateOmiWebhook } from "@/lib/api";
+import FounderPersona from "@/components/founder-persona";
 import DirectivePanel from "@/components/directive-panel";
 import { Radio, Database, Cpu, Shield, X, Sparkles, Award, ExternalLink, Presentation, Rocket } from "lucide-react";
 import confetti from "canvas-confetti";
@@ -30,6 +31,7 @@ export default function Home() {
   const [memoryMatches, setMemoryMatches] = useState<any[]>([]);
   const [selectedAgentFilter, setSelectedAgentFilter] = useState<string | null>(null);
   const [isPitchModalOpen, setIsPitchModalOpen] = useState(false);
+  const [rightActiveTab, setRightActiveTab] = useState<"search" | "persona">("search");
   
   // Document Viewer states
   const [selectedDocTitle, setSelectedDocTitle] = useState("Executive Strategy");
@@ -479,8 +481,38 @@ export default function Home() {
               isLoading={isTimelineLoading} 
             />
           </div>
-          <div className="h-[280px]">
-            <SemanticSearch onSelectDocument={handleSelectTimelineItem} />
+          <div className="h-[340px] flex flex-col gap-2">
+            {/* Tabs selector */}
+            <div className="flex gap-2 bg-[#08080a]/50 border border-gray-900/60 p-1 rounded-xl flex-shrink-0">
+              <button
+                onClick={() => setRightActiveTab("search")}
+                className={`flex-1 py-1.5 text-[9px] font-bold font-mono uppercase tracking-widest rounded-lg transition-all duration-300 ${
+                  rightActiveTab === "search"
+                    ? "bg-cyan-500/10 text-cyan-400 border border-cyan-500/20"
+                    : "text-gray-500 hover:text-gray-300"
+                }`}
+              >
+                Semantic Search
+              </button>
+              <button
+                onClick={() => setRightActiveTab("persona")}
+                className={`flex-1 py-1.5 text-[9px] font-bold font-mono uppercase tracking-widest rounded-lg transition-all duration-300 ${
+                  rightActiveTab === "persona"
+                    ? "bg-purple-500/10 text-purple-400 border border-purple-500/20"
+                    : "text-gray-500 hover:text-gray-300"
+                }`}
+              >
+                Founder Persona
+              </button>
+            </div>
+
+            <div className="flex-1 min-h-0">
+              {rightActiveTab === "search" ? (
+                <SemanticSearch onSelectDocument={handleSelectTimelineItem} />
+              ) : (
+                <FounderPersona onRefreshTimeline={fetchTimeline} />
+              )}
+            </div>
           </div>
         </div>
 

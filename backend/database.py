@@ -30,7 +30,7 @@ COLLECTIONS = [
 ]
 
 def init_db():
-    """Initialize Qdrant collections if they do not exist."""
+    """Initialize Qdrant collections if they do not exist, and seed demo records if empty."""
     try:
         client = get_qdrant_client()
         existing_collections = [c.name for c in client.get_collections().collections]
@@ -46,6 +46,41 @@ def init_db():
                 print(f"Created Qdrant collection: {col}")
             else:
                 print(f"Qdrant collection '{col}' already exists.")
+                
+        # Seed initial startup ideas and founder profile if empty
+        try:
+            info = client.get_collection(collection_name="startup_ideas")
+            if info.points_count == 0:
+                print("[Seeder] Seeding initial Founder Profile and historical memory...")
+                from datetime import datetime
+                
+                # Seed Founder Profile
+                save_memory(
+                    collection="startup_ideas",
+                    text="Founder Persona: Jane Doe. Core Focus: AI orchestration workflows, local-first markdown note-taking apps, Stripe subscription dynamic billing. Strategic Tendencies: Bootstrapping, low-CAC organic distribution, community-led growth (Reddit, Discord, HN). Preferred technologies: SQLite, Tailwind, Qdrant Vector DB, Gemini 1.5 Flash.",
+                    metadata={
+                        "timestamp": datetime.utcnow().isoformat() + "Z",
+                        "type": "Founder Profile",
+                        "startup_name": "General",
+                        "author": "System"
+                    }
+                )
+                
+                # Seed historical study app concept
+                save_memory(
+                    collection="startup_ideas",
+                    text="Study Tool Concept: Active recall vocal flashcards. Integrates spacing algorithms with semantically scored voice grading to replace passive reading.",
+                    metadata={
+                        "timestamp": datetime.utcnow().isoformat() + "Z",
+                        "type": "Historical Idea",
+                        "startup_name": "AI Study Copilot",
+                        "author": "Jane Doe"
+                    }
+                )
+                print("[Seeder] Demo seeding completed successfully.")
+        except Exception as err:
+            print(f"[Seeder] Failed to check or seed database: {err}")
+            
     except Exception as e:
         print(f"Error initializing Qdrant database: {e}")
 

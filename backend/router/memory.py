@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Query, HTTPException
 from typing import Optional, List, Dict, Any
+from pydantic import BaseModel
 from backend.database import search_memory, search_all_collections, get_all_memories, COLLECTIONS
 
 router = APIRouter(prefix="/api/memory", tags=["memory"])
@@ -58,4 +59,24 @@ async def get_memory_timeline(
         return timeline_items[:limit]
     except Exception as e:
         print(f"[Memory API] Timeline error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+class MemoryPayload(BaseModel):
+    collection: str
+    text: str
+    metadata: Optional[Dict[str, Any]] = None
+
+@router.post("/save")
+async def save_startup_memory(payload: MemoryPayload):
+    """Saves a memory record directly in a specified Qdrant collection."""
+    try:
+        from backend.database import save_memory
+        point_id = save_memory(
+            collection=payload.collection,
+            text=payload.text,
+            metadata=payload.metadata
+        )
+        return {"status": "success", "point_id": point_id}
+    except Exception as e:
+        print(f"[Memory API] Save memory error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
