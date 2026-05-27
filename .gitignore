@@ -15,6 +15,7 @@ frontend/build/
 
 # Local configuration and environment variables
 .env
+.env.example
 .env*.local
 
 # System generated logs and directories
