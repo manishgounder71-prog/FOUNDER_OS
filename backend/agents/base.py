@@ -45,7 +45,7 @@ def get_lyzr_model() -> Optional[OpenAIModel]:
         if settings.OPENROUTER_API_KEY:
             import os
             os.environ["OPENAI_BASE_URL"] = "https://openrouter.ai/api/v1"
-            model_name = "openai/gpt-4o"
+            model_name = "meta-llama/llama-3.3-70b-instruct:free"
         else:
             model_name = "gpt-4o"
             
