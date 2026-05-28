@@ -205,7 +205,15 @@ async def omi_webhook(
         # If it is a local request originating from localhost/127.0.0.1, bypass key verification
         referer = request.headers.get("referer", "")
         origin = request.headers.get("origin", "")
-        is_local = "localhost" in referer or "127.0.0.1" in referer or "localhost" in origin or "127.0.0.1" in origin
+        client_host = request.client.host if request.client else ""
+        is_local = (
+            "localhost" in referer or 
+            "127.0.0.1" in referer or 
+            "localhost" in origin or 
+            "127.0.0.1" in origin or
+            client_host in ("127.0.0.1", "localhost", "::1")
+        )
+        print(f"[Debug Webhook] referer='{referer}', origin='{origin}', client_host='{client_host}', is_local={is_local}")
         
         if not is_local:
             provided_key = api_key or x_omi_api_key
