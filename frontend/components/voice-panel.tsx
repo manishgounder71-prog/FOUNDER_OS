@@ -3,7 +3,7 @@
 import React, { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Mic, MicOff, Radio, Play, AlertCircle, Zap, Search } from "lucide-react";
-import { simulateOmiWebhook } from "@/lib/api";
+import { simulateOmiWebhook, transcribeAudio } from "@/lib/api";
 
 interface VoicePanelProps {
   onTriggerWorkflow: (workflowId: string, promptText: string) => void;
@@ -33,94 +33,62 @@ export default function VoicePanel({ onTriggerWorkflow, onResearchQuery, isExecu
   const [prompt, setPrompt] = useState("");
   const [error, setError] = useState<string | null>(null);
 
-  const recognition = useRef<any>(null);
-  const transcript = useRef("");
-
-  const currentStatus = STATUS.find(s => s.key === phase) ?? STATUS[0];
+  const mediaRecorder = useRef<MediaRecorder | null>(null);
+  const audioChunks = useRef<Blob[]>([]);
 
   React.useEffect(() => {
-    return () => { if (recognition.current) try { recognition.current.abort(); } catch (e) {} };
+    return () => {
+      if (mediaRecorder.current && mediaRecorder.current.state !== "inactive") {
+        mediaRecorder.current.stop();
+      }
+    };
   }, []);
 
   const startRecording = async () => {
     setError(null);
-
-    // Check browser support
-    const SpeechClass = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SpeechClass) {
-      setError("Voice input needs Chrome or Edge.");
-      return;
-    }
-
-    // Check mic permission first
+    audioChunks.current = [];
     try {
-      await navigator.mediaDevices.getUserMedia({ audio: true });
-    } catch {
-      setError("Microphone access blocked. Allow mic permissions in your browser and try again.");
-      return;
-    }
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mr = new MediaRecorder(stream, {
+        mimeType: MediaRecorder.isTypeSupported("audio/webm") ? "audio/webm" : "audio/wav"
+      });
 
-    try {
-      const r = new SpeechClass();
-      r.continuous = false;
-      r.interimResults = true;
-      r.lang = "en-US";
-
-      r.onresult = (e: any) => {
-        let text = "";
-        for (let i = 0; i < e.results.length; i++) {
-          text += e.results[i][0].transcript;
-        }
-        transcript.current = text;
-        setPrompt(text);
+      mr.ondataavailable = (e) => {
+        if (e.data.size > 0) audioChunks.current.push(e.data);
       };
 
-      r.onerror = (e: any) => {
-        recognition.current = null;
-        setRecording(false);
-        const msgs: Record<string, string> = {
-          "not-allowed": "Microphone blocked. Allow mic access in browser settings.",
-          "no-speech": "No speech heard. Try speaking louder or type instead.",
-          "aborted": "Recording stopped.",
-          "audio-capture": "No microphone found. Connect one and try again.",
-        };
-        if (!transcript.current) {
-          setError(msgs[e.error] || `Voice error: ${e.error}`);
+      mr.onstop = async () => {
+        stream.getTracks().forEach(t => t.stop());
+        const blob = new Blob(audioChunks.current, { type: mr.mimeType });
+        setStatus("Transcribing via Gemini...");
+        try {
+          const text = await transcribeAudio(blob);
+          if (text) {
+            setPrompt(text);
+            setStatus(`Ready: "${text.slice(0, 60)}${text.length > 60 ? "..." : ""}"`);
+          } else {
+            setStatus("No speech detected. Type your command.");
+          }
+        } catch {
+          setError("Transcription failed. Gemini may not be available. Type your command.");
           setStatus("Ready to receive commands...");
         }
-      };
-
-      r.onend = () => {
         setRecording(false);
-        if (transcript.current) {
-          setPrompt(transcript.current);
-          setStatus(`Ready: "${transcript.current.slice(0, 60)}${transcript.current.length > 60 ? "..." : ""}"`);
-        } else {
-          setStatus("Ready to receive commands...");
-        }
       };
 
-      recognition.current = r;
-      transcript.current = "";
-      r.start();
+      mr.start();
+      mediaRecorder.current = mr;
       setRecording(true);
-      setStatus("Listening... speak now.");
+      setStatus("Recording... speak now.");
     } catch {
-      setError("Could not start voice recognition. Type your command below.");
+      setError("Microphone access blocked or no mic found.");
     }
   };
 
   const stopRecording = () => {
-    if (recognition.current) {
-      try { recognition.current.stop(); } catch (e) {}
-      recognition.current = null;
-    }
-    setRecording(false);
-    if (transcript.current) {
-      setPrompt(transcript.current);
-      setStatus(`Ready: "${transcript.current.slice(0, 60)}${transcript.current.length > 60 ? "..." : ""}"`);
-    } else {
-      setStatus("Stopped. Speak or type above.");
+    if (mediaRecorder.current && mediaRecorder.current.state !== "inactive") {
+      mediaRecorder.current.stop();
+      mediaRecorder.current = null;
     }
   };
 
@@ -199,8 +167,8 @@ export default function VoicePanel({ onTriggerWorkflow, onResearchQuery, isExecu
 
         <AnimatePresence mode="wait">
           <motion.div key={phase + String(recording)} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} className="text-center">
-            <p className={`text-[10px] font-mono font-bold tracking-widest uppercase ${recording ? "text-cyan-400" : currentStatus.color}`}>
-              {recording ? "LISTENING — Speak Now" : currentStatus.label}
+            <p className={`text-[10px] font-mono font-bold tracking-widest uppercase ${recording ? "text-cyan-400" : "text-gray-500"}`}>
+              {recording ? "RECORDING — Speak Now" : "STANDBY"}
             </p>
             <p className="text-[9px] text-gray-600 mt-0.5 font-mono truncate max-w-[200px]">{status}</p>
           </motion.div>
