@@ -149,20 +149,25 @@ export default function VoicePanel({ onTriggerWorkflow, onResearchQuery, isExecu
             setStatusMsg("Sending to Whisper API...");
             transcript = await transcribeAudio(audioBlob);
           } catch (err: any) {
-            // Backend transcription failed — show a helpful error with edit box
+            // Backend transcription failed — go to preview with empty text so user can type
             console.warn("[Voice] Backend transcription unavailable:", err.message);
-            setError(err.message || "Voice transcription failed.");
-            setPhase("standby");
-            setStatusMsg("Ready to receive commands...");
+            setPendingTranscript("");
+            setEditedTranscript("");
+            setPhase("preview");
+            setStatusMsg("Voice not detected. Type your command below.");
+            setError("Mic transcription unavailable. Type your command and click Deploy.");
             stream.getTracks().forEach(t => t.stop());
             return;
           }
         }
 
         if (!transcript || !transcript.trim()) {
-          setError("Could not detect speech. Please speak clearly or type your command below.");
-          setPhase("standby");
-          setStatusMsg("Ready to receive commands...");
+          // Show editable preview so user can type their command
+          setPendingTranscript("");
+          setEditedTranscript("");
+          setPhase("preview");
+          setStatusMsg("Voice not detected. Type your command below.");
+          setError("Could not detect speech. Type your command and click Deploy.");
           stream.getTracks().forEach(t => t.stop());
           return;
         }
@@ -322,7 +327,7 @@ export default function VoicePanel({ onTriggerWorkflow, onResearchQuery, isExecu
 
         {/* ✅ Transcript Preview — confirm before deploying */}
         <AnimatePresence>
-          {phase === "preview" && pendingTranscript && (
+          {phase === "preview" && (
             <motion.div
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: "auto" }}
@@ -330,14 +335,14 @@ export default function VoicePanel({ onTriggerWorkflow, onResearchQuery, isExecu
               className="w-full px-1 space-y-1.5"
             >
               <p className="text-[9px] text-emerald-400 font-mono uppercase tracking-widest flex items-center gap-1">
-                <Edit3 className="w-3 h-3" /> Transcribed — edit if needed
+                <Edit3 className="w-3 h-3" /> {pendingTranscript ? "Transcribed — edit if needed" : "Type your command below"}
               </p>
               <textarea
                 value={editedTranscript}
                 onChange={(e) => setEditedTranscript(e.target.value)}
                 rows={2}
                 className="w-full glass-input rounded-lg p-1.5 text-[11px] outline-none resize-none leading-relaxed"
-                placeholder="Edit your command..."
+                placeholder="Type your command here, e.g. Create a launch strategy for an AI fitness app..."
               />
               <div className="flex gap-1.5">
                 <motion.button
