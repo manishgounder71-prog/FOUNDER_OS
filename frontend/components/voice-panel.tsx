@@ -3,7 +3,7 @@
 import React, { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Mic, MicOff, Radio, Play, AlertCircle, Zap, Search, CheckCircle, Edit3 } from "lucide-react";
-import { transcribeAudio, simulateOmiWebhook } from "@/lib/api";
+import { simulateOmiWebhook } from "@/lib/api";
 
 interface VoicePanelProps {
   onTriggerWorkflow: (workflowId: string, promptText: string) => void;
@@ -60,156 +60,15 @@ export default function VoicePanel({ onTriggerWorkflow, onResearchQuery, isExecu
     };
   }, []);
 
-  const startRecording = async () => {
+  const startRecording = () => {
     setError(null);
     setPendingTranscript("");
-    setEditedTranscript("");
-    audioChunksRef.current = [];
-    recognitionTranscriptRef.current = "";
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      let options = {};
-      if (typeof MediaRecorder !== "undefined") {
-        if (MediaRecorder.isTypeSupported("audio/webm")) {
-          options = { mimeType: "audio/webm" };
-        } else if (MediaRecorder.isTypeSupported("audio/ogg")) {
-          options = { mimeType: "audio/ogg" };
-        }
-      }
-      const mediaRecorder = new MediaRecorder(stream, options);
-      mediaRecorderRef.current = mediaRecorder;
-
-      // Web Audio API Analyzer
-      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-      if (AudioContextClass) {
-        const audioCtx = new AudioContextClass();
-        audioContextRef.current = audioCtx;
-        const source = audioCtx.createMediaStreamSource(stream);
-        const analyser = audioCtx.createAnalyser();
-        analyser.fftSize = 64;
-        analyserRef.current = analyser;
-        source.connect(analyser);
-        const dataArray = new Uint8Array(analyser.frequencyBinCount);
-        const draw = () => {
-          if (!analyserRef.current) return;
-          analyserRef.current.getByteFrequencyData(dataArray);
-          let sum = 0;
-          for (let i = 0; i < dataArray.length; i++) sum += dataArray[i];
-          const normalized = Math.min(100, Math.floor((sum / dataArray.length / 150) * 100));
-          setAudioLevel(normalized);
-          animationFrameRef.current = requestAnimationFrame(draw);
-        };
-        draw();
-      }
-
-      // Browser Web Speech API — primary transcription method
-      const SpeechRecognitionClass = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-      if (SpeechRecognitionClass) {
-        const recognition = new SpeechRecognitionClass();
-        recognition.continuous = true;      // Keep listening the whole recording duration
-        recognition.interimResults = true;  // Capture partial results too
-        recognition.lang = "en-US";
-
-        recognition.onresult = (event: any) => {
-          let fullText = "";
-          for (let i = 0; i < event.results.length; i++) {
-            fullText += event.results[i][0].transcript + " ";
-          }
-          const text = fullText.trim();
-          recognitionTranscriptRef.current = text;
-          console.log("[WebSpeech] Interim transcript:", text);
-          setPendingTranscript(text);
-          setEditedTranscript(text);
-        };
-
-        recognition.onerror = (err: any) => {
-          console.warn("[WebSpeech] Local speech error:", err.error);
-          if (err.error === "not-allowed") {
-            setError("Microphone permission blocked by browser.");
-          } else if (err.error === "network") {
-            console.warn("[WebSpeech] Network error during local speech recognition.");
-          }
-        };
-
-        recognition.onend = () => {
-          // Robust auto-restart if MediaRecorder is still recording (prevents silent auto-stops)
-          const isStillRecording = mediaRecorderRef.current && mediaRecorderRef.current.state === "recording";
-          if (isStillRecording) {
-            try {
-              recognition.start();
-              console.log("[WebSpeech] Restarted SpeechRecognition after auto-stop.");
-            } catch (e) {
-              console.warn("[WebSpeech] Failed to restart SpeechRecognition:", e);
-            }
-          }
-        };
-
-        recognitionRef.current = recognition;
-        try { recognition.start(); } catch (e) { console.error("[WebSpeech] Recognition start failed:", e); }
-      }
-
-      mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) audioChunksRef.current.push(event.data);
-      };
-
-      mediaRecorder.onstop = async () => {
-        const mimeType = mediaRecorderRef.current?.mimeType || "audio/webm";
-        const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
-        setPhase("transcribing");
-        setStatusMsg("Processing speech...");
-
-        // Wait for Web Speech API to finalize (2s to ensure final results arrive)
-        await new Promise((resolve) => setTimeout(resolve, 2000));
-
-        let transcript = recognitionTranscriptRef.current.trim();
-        console.log("[Voice] Web Speech result:", transcript || "(empty)");
-
-        // Only call backend Whisper if browser Speech API returned nothing
-        if (!transcript) {
-          try {
-            setStatusMsg("Sending to Whisper API...");
-            transcript = await transcribeAudio(audioBlob);
-          } catch (err: any) {
-            console.warn("[Voice] Backend transcription unavailable:", err.message);
-          }
-        }
-
-        // Always show preview — user can type if speech failed, or confirm/edit if it worked
-        setPendingTranscript(transcript || "");
-        setEditedTranscript(transcript || customPrompt || "");
-        setPhase("preview");
-        setStatusMsg(transcript ? "Review your command before deploying." : "Type your command below.");
-        stream.getTracks().forEach(t => t.stop());
-        return;
-
-        // ✅ Show transcript preview — let user confirm before deploying
-        setPendingTranscript(transcript);
-        setEditedTranscript(transcript);
-        setPhase("preview");
-        setStatusMsg("Review your command before deploying.");
-        stream.getTracks().forEach(t => t.stop());
-      };
-
-      mediaRecorder.start();
-      setIsRecording(true);
-      setPhase("listening");
-      setStatusMsg("Listening to voice input...");
-    } catch {
-      setError("Microphone access denied or unavailable.");
-    }
+    setEditedTranscript(customPrompt || "");
+    setPhase("preview");
+    setStatusMsg(customPrompt ? "Edit your command and click Deploy." : "Type your command below.");
   };
 
-  const stopRecording = () => {
-    if (mediaRecorderRef.current && isRecording) {
-      mediaRecorderRef.current.stop();
-      setIsRecording(false);
-
-      if (recognitionRef.current) { try { recognitionRef.current.stop(); } catch (e) {} }
-      if (animationFrameRef.current) { cancelAnimationFrame(animationFrameRef.current); animationFrameRef.current = null; }
-      if (audioContextRef.current) { audioContextRef.current.close().catch(() => {}); audioContextRef.current = null; }
-      setAudioLevel(0);
-    }
-  };
+  const stopRecording = () => {};
 
   const confirmAndDeploy = async () => {
     const text = editedTranscript.trim();
