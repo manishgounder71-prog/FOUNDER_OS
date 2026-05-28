@@ -57,69 +57,74 @@ async def transcribe_audio(
 
         if settings.GEMINI_API_KEY:
             try:
-                import subprocess
-                import google.generativeai as genai
-                genai.configure(api_key=settings.GEMINI_API_KEY)
-                
+                import base64
+                import urllib.request
+                import json
+                import time
+
                 # Convert to WAV first (Gemini handles WAV reliably vs WebM)
                 wav_path = temp_file_path.rsplit(".", 1)[0] + ".wav"
                 try:
+                    import subprocess
                     subprocess.run(
                         ["ffmpeg", "-y", "-i", temp_file_path, "-acodec", "pcm_s16le", "-ar", "16000", "-ac", "1", wav_path],
                         capture_output=True, timeout=30
                     )
-                    audio_path_for_gemini = wav_path
+                    audio_path = wav_path
+                    mime = "audio/wav"
                 except Exception as conv_err:
-                    print(f"[Voice] ffmpeg conversion failed, trying original: {conv_err}")
-                    audio_path_for_gemini = temp_file_path
-                
-                import time
-                print(f"[Voice] Uploading {audio_path_for_gemini} to Gemini...")
-                audio_file = genai.upload_file(path=audio_path_for_gemini)
-                print(f"[Voice] File uploaded: {audio_file.name}, state: {audio_file.state.name}")
-                
-                # Wait for Gemini to finish processing the file (async upload)
-                wait_start = time.time()
-                while audio_file.state.name == "PROCESSING":
-                    if time.time() - wait_start > 30:
-                        raise Exception("Gemini file processing timed out after 30s")
-                    print("[Voice] Waiting for Gemini file processing...")
-                    time.sleep(1)
-                    audio_file = genai.get_file(audio_file.name)
-                
-                if audio_file.state.name != "ACTIVE":
-                    print(f"[Voice] File processing failed: state={audio_file.state.name}")
-                    raise Exception(f"Gemini file processing failed: {audio_file.state.name}")
-                
-                print(f"[Voice] File ready, size: {audio_file.size_bytes} bytes")
-                
-                # Loop through available models to ensure compatibility
-                models_to_try = ["gemini-2.0-flash", "gemini-1.5-flash"]
-                response = None
-                for m_name in models_to_try:
-                    try:
-                        print(f"[Voice] Trying Gemini model {m_name}...")
-                        model = genai.GenerativeModel(m_name)
-                        response = model.generate_content([
-                            audio_file,
-                            "Please transcribe this audio recording exactly. Return only the transcription text, nothing else."
-                        ])
-                        print(f"[Voice] Model {m_name} responded. text='{response.text[:100] if response.text else '(empty)'}'")
-                        if response.text and response.text.strip():
-                            break
-                    except Exception as model_err:
-                        print(f"[Voice] Gemini model {m_name} failed: {model_err}")
-                        last_err = model_err
-                
-                # Clean up WAV if it was created
-                if audio_path_for_gemini == wav_path and os.path.exists(wav_path):
+                    print(f"[Voice] ffmpeg conversion failed: {conv_err}")
+                    audio_path = temp_file_path
+                    ext = os.path.splitext(temp_file_path)[1].lower()
+                    mime = {"webm": "audio/webm", "wav": "audio/wav", "ogg": "audio/ogg"}.get(ext.replace(".", ""), "audio/webm")
+
+                # Read and base64-encode the audio
+                with open(audio_path, "rb") as f:
+                    b64 = base64.b64encode(f.read()).decode("utf-8")
+                print(f"[Voice] Audio encoded: {len(b64)} chars, mime={mime}")
+
+                if audio_path == wav_path and os.path.exists(wav_path):
                     try: os.remove(wav_path)
                     except: pass
+
+                # Try Gemini REST API with inline audio data (bypasses File API)
+                models_api = ["gemini-2.0-flash", "gemini-1.5-flash"]
+                transcript_text = None
+                for model_name in models_api:
+                    try:
+                        print(f"[Voice] Calling Gemini REST API model={model_name}...")
+                        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={settings.GEMINI_API_KEY}"
+                        payload = {
+                            "contents": [{
+                                "parts": [
+                                    {"inline_data": {"mime_type": mime, "data": b64}},
+                                    {"text": "Transcribe this audio recording exactly. Return ONLY the transcribed text, nothing else."}
+                                ]
+                            }]
+                        }
+                        req = urllib.request.Request(
+                            url,
+                            data=json.dumps(payload).encode("utf-8"),
+                            headers={"Content-Type": "application/json"}
+                        )
+                        with urllib.request.urlopen(req, timeout=60) as resp:
+                            result = json.loads(resp.read().decode("utf-8"))
+
+                        candidate = result.get("candidates", [{}])[0]
+                        text = candidate.get("content", {}).get("parts", [{}])[0].get("text", "").strip()
+                        print(f"[Voice] Gemini {model_name} result: '{text[:100]}'")
+                        if text:
+                            transcript_text = text
+                            break
+                    except Exception as model_err:
+                        print(f"[Voice] Gemini REST model {model_name} failed: {model_err}")
                 
-                try:
-                    audio_file.delete()
-                except Exception as delete_err:
-                    print(f"[Voice] Failed to delete Gemini file: {delete_err}")
+                if transcript_text:
+                    return {"transcript": transcript_text}
+                last_err = Exception("All Gemini REST models returned empty")
+            except Exception as gemini_err:
+                print(f"[Voice] Gemini REST transcription failed: {gemini_err}")
+                last_err = gemini_err
                 
                 if response is None and last_err:
                     raise last_err
