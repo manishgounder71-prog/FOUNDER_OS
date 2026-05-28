@@ -3,7 +3,7 @@
 import React, { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Mic, MicOff, Radio, Play, AlertCircle, Zap, Search } from "lucide-react";
-import { simulateOmiWebhook } from "@/lib/api";
+import { simulateOmiWebhook, transcribeAudio } from "@/lib/api";
 
 interface VoicePanelProps {
   onTriggerWorkflow: (workflowId: string, promptText: string) => void;
@@ -27,68 +27,71 @@ export default function VoicePanel({ onTriggerWorkflow, onResearchQuery, isExecu
   const [prompt, setPrompt] = useState("");
   const [error, setError] = useState<string | null>(null);
 
-  const recognitionRef = useRef<any>(null);
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
 
   React.useEffect(() => {
     return () => {
-      if (recognitionRef.current) try { recognitionRef.current.abort(); } catch (e) {}
+      if (recorderRef.current && recorderRef.current.state !== "inactive") {
+        recorderRef.current.stop();
+      }
     };
   }, []);
 
-  const startRecording = () => {
+  const startRecording = async () => {
     setError(null);
-    const Speech = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!Speech) {
-      setError("Speech recognition requires Chrome or Edge. Type your command below.");
-      return;
-    }
+    chunksRef.current = [];
     try {
-      const r = new Speech();
-      r.continuous = false;
-      r.interimResults = false;
-      r.lang = "en-US";
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mr = new MediaRecorder(stream, {
+        mimeType: MediaRecorder.isTypeSupported("audio/webm") ? "audio/webm" : "audio/wav"
+      });
 
-      r.onresult = (e: any) => {
-        const text = e.results[e.results.length - 1][0].transcript;
-        setPrompt(text);
-        setStatus(`Ready: "${text.slice(0, 60)}${text.length > 60 ? "..." : ""}"`);
+      mr.ondataavailable = (e) => {
+        if (e.data.size > 0) chunksRef.current.push(e.data);
+      };
+
+      mr.onstop = async () => {
+        stream.getTracks().forEach(t => t.stop());
+        const blob = new Blob(chunksRef.current, { type: mr.mimeType });
+        if (blob.size < 200) {
+          setError("Audio too short. Speak longer or check your mic.");
+          setRecording(false);
+          return;
+        }
+        setStatus("Transcribing...");
+        try {
+          const text = await transcribeAudio(blob);
+          if (text) {
+            if (text.startsWith("[ERROR:")) {
+              setError(text.replace(/^\[ERROR: |\]$/g, ""));
+            } else {
+              setPrompt(text);
+              setStatus(`Ready: "${text.slice(0, 60)}${text.length > 60 ? "..." : ""}"`);
+            }
+          } else {
+            setError("No speech detected. Try speaking louder.");
+          }
+        } catch (err: any) {
+          setError(`API error: ${err.message}`);
+        }
         setRecording(false);
       };
 
-      r.onerror = (e: any) => {
-        setRecording(false);
-        recognitionRef.current = null;
-        const map: Record<string, string> = {
-          "not-allowed": "Microphone blocked. Allow mic access in browser settings.",
-          "no-speech": "Microphone active but no speech heard. Try speaking louder or check your mic.",
-          "aborted": "",
-          "audio-capture": "No microphone found.",
-          "network": "Speech service unreachable. Check your internet connection.",
-          "service-not-allowed": "Speech service blocked on this device.",
-        };
-        const msg = map[e.error];
-        if (msg) setError(msg);
-      };
-
-      r.onend = () => {
-        setRecording(false);
-      };
-
-      recognitionRef.current = r;
-      r.start();
+      mr.start();
+      recorderRef.current = mr;
       setRecording(true);
-      setStatus("Listening...");
+      setStatus("Recording...");
     } catch {
-      setError("Could not start voice recognition. Type your command instead.");
+      setError("Microphone access blocked. Allow mic in browser settings.");
     }
   };
 
   const stopRecording = () => {
-    if (recognitionRef.current) {
-      try { recognitionRef.current.stop(); } catch (e) {}
-      recognitionRef.current = null;
+    if (recorderRef.current && recorderRef.current.state !== "inactive") {
+      recorderRef.current.stop();
+      recorderRef.current = null;
     }
-    setRecording(false);
   };
 
   const deploy = async () => {
@@ -132,7 +135,7 @@ export default function VoicePanel({ onTriggerWorkflow, onResearchQuery, isExecu
           </motion.div>
           <h2 className="text-sm font-bold tracking-widest text-gray-100 uppercase font-mono">Voice Command Center</h2>
         </div>
-        <p className="text-[10px] text-gray-500 tracking-wide">Speak or type — text goes to the input below</p>
+        <p className="text-[10px] text-gray-500 tracking-wide">Record audio — transcribed via backend</p>
       </div>
 
       <div className="flex flex-col items-center justify-center py-1 gap-2.5">
@@ -156,7 +159,7 @@ export default function VoicePanel({ onTriggerWorkflow, onResearchQuery, isExecu
         <AnimatePresence mode="wait">
           <motion.div key={phase + String(recording)} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} className="text-center">
             <p className={`text-[10px] font-mono font-bold tracking-widest uppercase ${recording ? "text-cyan-400" : "text-gray-500"}`}>
-              {recording ? "LISTENING — Speak Now" : phase === "deploy" ? "DEPLOYING" : phase === "run" ? "EXECUTING" : "STANDBY"}
+              {recording ? "RECORDING" : phase === "deploy" ? "DEPLOYING" : phase === "run" ? "EXECUTING" : "STANDBY"}
             </p>
             <p className="text-[9px] text-gray-600 mt-0.5 font-mono truncate max-w-[200px]">{status}</p>
           </motion.div>
@@ -180,7 +183,7 @@ export default function VoicePanel({ onTriggerWorkflow, onResearchQuery, isExecu
               : "bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 text-cyan-300 disabled:opacity-40"
           }`}
         >
-          {recording ? <><MicOff className="w-3.5 h-3.5" /> Stop</> : <><Mic className="w-3.5 h-3.5" /> Speak</>}
+          {recording ? <><MicOff className="w-3.5 h-3.5" /> Stop</> : <><Mic className="w-3.5 h-3.5" /> Record</>}
         </motion.button>
       </div>
 
@@ -220,10 +223,10 @@ export default function VoicePanel({ onTriggerWorkflow, onResearchQuery, isExecu
         </div>
 
         <div className="flex flex-col gap-0.5">
-          <label className="text-[9px] text-gray-600 uppercase tracking-widest">Custom Search / Command</label>
+          <label className="text-[9px] text-gray-600 uppercase tracking-widest">Custom / Result</label>
           <input
             type="text"
-            placeholder="Speak or type here..."
+            placeholder="Type or record above..."
             value={prompt}
             onChange={(e) => { setPrompt(e.target.value); setPreset(""); }}
             className="glass-input rounded-lg p-1.5 text-[11px] outline-none"

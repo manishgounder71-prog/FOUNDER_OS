@@ -21,17 +21,11 @@ async def transcribe_audio(
     file: UploadFile = File(...),
     mock_prompt: Optional[str] = Form(None)
 ):
-    """Transcribes audio files recorded in the browser using OpenAI Whisper.
-    Returns a proper HTTP error if transcription is unavailable so the frontend
-    can prompt the user to type their command instead of silently using wrong text.
-    """
-    # 1. If a mock prompt was sent by the frontend for debugging, use it directly
     if mock_prompt:
         return {"transcript": mock_prompt}
 
     temp_file_path = None
     try:
-        # Save temp file
         temp_dir = "./temp_audio"
         os.makedirs(temp_dir, exist_ok=True)
         temp_file_path = os.path.join(temp_dir, file.filename)
@@ -40,241 +34,139 @@ async def transcribe_audio(
             content = await file.read()
             buffer.write(content)
 
-        last_err = None
-        # 1. Try OpenAI Whisper if API key is present
-        if settings.OPENAI_API_KEY:
-            try:
-                client = OpenAI(api_key=settings.OPENAI_API_KEY)
-                with open(temp_file_path, "rb") as audio_file:
-                    transcript = client.audio.transcriptions.create(
-                        model="whisper-1",
-                        file=audio_file
-                    )
-                return {"transcript": transcript.text}
-            except Exception as whisper_err:
-                print(f"[Voice] Whisper transcription failed: {whisper_err}. Trying Gemini...")
-                last_err = whisper_err
+        file_size = os.path.getsize(temp_file_path)
+        print(f"[Voice] Received audio: {file_size} bytes, type={file.content_type}")
 
+        if file_size < 200:
+            return {"transcript": ""}
+
+        # Convert to WAV for better compatibility
+        wav_path = temp_file_path.rsplit(".", 1)[0] + ".wav"
+        import subprocess, base64, urllib.request, json
+        try:
+            subprocess.run(
+                ["ffmpeg", "-y", "-i", temp_file_path, "-acodec", "pcm_s16le", "-ar", "16000", "-ac", "1", wav_path],
+                capture_output=True, timeout=30
+            )
+            audio_path = wav_path
+            mime = "audio/wav"
+        except Exception as conv_err:
+            print(f"[Voice] ffmpeg failed: {conv_err}")
+            audio_path = temp_file_path
+            ext = os.path.splitext(temp_file_path)[1].lower()
+            mime = {"webm": "audio/webm", "wav": "audio/wav", "ogg": "audio/ogg"}.get(ext.replace(".", ""), "audio/webm")
+
+        with open(audio_path, "rb") as f:
+            b64 = base64.b64encode(f.read()).decode("utf-8")
+        print(f"[Voice] Audio encoded: {len(b64)} chars, mime={mime}")
+
+        if audio_path == wav_path and os.path.exists(wav_path):
+            try: os.remove(wav_path)
+            except: pass
+
+        # Try Gemini REST API with inline audio
         if settings.GEMINI_API_KEY:
-            try:
-                import base64
-                import urllib.request
-                import json
-                import time
-
-                # Convert to WAV first (Gemini handles WAV reliably vs WebM)
-                wav_path = temp_file_path.rsplit(".", 1)[0] + ".wav"
+            models_api = ["gemini-2.0-flash", "gemini-1.5-flash"]
+            for model_name in models_api:
                 try:
-                    import subprocess
-                    subprocess.run(
-                        ["ffmpeg", "-y", "-i", temp_file_path, "-acodec", "pcm_s16le", "-ar", "16000", "-ac", "1", wav_path],
-                        capture_output=True, timeout=30
+                    print(f"[Voice] Trying Gemini {model_name}...")
+                    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={settings.GEMINI_API_KEY}"
+                    payload = {
+                        "contents": [{
+                            "parts": [
+                                {"inline_data": {"mime_type": mime, "data": b64}},
+                                {"text": "Transcribe this audio exactly. Return ONLY the transcribed words."}
+                            ]
+                        }]
+                    }
+                    req = urllib.request.Request(
+                        url,
+                        data=json.dumps(payload).encode("utf-8"),
+                        headers={"Content-Type": "application/json"}
                     )
-                    audio_path = wav_path
-                    mime = "audio/wav"
-                except Exception as conv_err:
-                    print(f"[Voice] ffmpeg conversion failed: {conv_err}")
-                    audio_path = temp_file_path
-                    ext = os.path.splitext(temp_file_path)[1].lower()
-                    mime = {"webm": "audio/webm", "wav": "audio/wav", "ogg": "audio/ogg"}.get(ext.replace(".", ""), "audio/webm")
+                    with urllib.request.urlopen(req, timeout=60) as resp:
+                        result = json.loads(resp.read().decode("utf-8"))
 
-                # Read and base64-encode the audio
-                with open(audio_path, "rb") as f:
-                    b64 = base64.b64encode(f.read()).decode("utf-8")
-                print(f"[Voice] Audio encoded: {len(b64)} chars, mime={mime}")
+                    candidate = result.get("candidates", [{}])[0]
+                    text = candidate.get("content", {}).get("parts", [{}])[0].get("text", "").strip()
+                    finish = candidate.get("finishReason", "")
+                    print(f"[Voice] Gemini {model_name}: text='{text[:80]}' finish={finish}")
+                    if text:
+                        return {"transcript": text}
+                    if finish == "SAFETY":
+                        return {"transcript": "[Blocked by safety filters. Try different wording.]"}
+                except urllib.error.HTTPError as he:
+                    body = he.read().decode("utf-8")
+                    print(f"[Voice] Gemini HTTP {he.code}: {body[:200]}")
+                    if "API_KEY_INVALID" in body:
+                        return {"transcript": f"[ERROR: Gemini API key is invalid. Check your Render env var GEMINI_API_KEY.]"}
+                    if "API_KEY" in body or "403" in str(he.code):
+                        return {"transcript": f"[ERROR: Gemini API key rejected (403). Check the key in Render dashboard.]"}
+                    if "429" in str(he.code) or "RATE_LIMIT" in body:
+                        return {"transcript": "[ERROR: Gemini rate limited. Try again in a minute.]"}
+                except Exception as model_err:
+                    print(f"[Voice] Gemini {model_name} error: {model_err}")
 
-                if audio_path == wav_path and os.path.exists(wav_path):
-                    try: os.remove(wav_path)
-                    except: pass
-
-                # Try Gemini REST API with inline audio data (bypasses File API)
-                models_api = ["gemini-2.0-flash", "gemini-1.5-flash"]
-                transcript_text = None
-                for model_name in models_api:
-                    try:
-                        print(f"[Voice] Calling Gemini REST API model={model_name}...")
-                        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={settings.GEMINI_API_KEY}"
-                        payload = {
-                            "contents": [{
-                                "parts": [
-                                    {"inline_data": {"mime_type": mime, "data": b64}},
-                                    {"text": "Transcribe this audio recording exactly. Return ONLY the transcribed text, nothing else."}
-                                ]
-                            }]
-                        }
-                        req = urllib.request.Request(
-                            url,
-                            data=json.dumps(payload).encode("utf-8"),
-                            headers={"Content-Type": "application/json"}
-                        )
-                        with urllib.request.urlopen(req, timeout=60) as resp:
-                            result = json.loads(resp.read().decode("utf-8"))
-
-                        candidate = result.get("candidates", [{}])[0]
-                        text = candidate.get("content", {}).get("parts", [{}])[0].get("text", "").strip()
-                        print(f"[Voice] Gemini {model_name} result: '{text[:100]}'")
-                        if text:
-                            transcript_text = text
-                            break
-                    except Exception as model_err:
-                        print(f"[Voice] Gemini REST model {model_name} failed: {model_err}")
-                
-                if transcript_text:
-                    return {"transcript": transcript_text}
-                last_err = Exception("All Gemini REST models returned empty")
-            except Exception as gemini_err:
-                print(f"[Voice] Gemini REST transcription failed: {gemini_err}")
-                last_err = gemini_err
-                
-                if response is None and last_err:
-                    raise last_err
-                
-                transcript_text = response.text.strip()
-                if transcript_text:
-                    return {"transcript": transcript_text}
-            except Exception as gemini_err:
-                print(f"[Voice] Gemini transcription fallback failed: {gemini_err}")
-                last_err = gemini_err
-
-        # 3. Try OpenRouter transcription via chat completions with free multimodal models
+        # Try OpenRouter free Gemini model
         if settings.OPENROUTER_API_KEY:
-            import base64
-            import urllib.request
-            import json
-            
-            with open(temp_file_path, "rb") as f:
-                audio_data = base64.b64encode(f.read()).decode("utf-8")
-            
-            file_ext = os.path.splitext(file.filename)[1].lower().replace(".", "")
-            if file_ext not in ["wav", "mp3", "flac", "ogg", "webm", "m4a"]:
-                file_ext = "wav"
-            
-            mime_type_map = {"wav": "audio/wav", "mp3": "audio/mpeg", "flac": "audio/flac", "ogg": "audio/ogg", "webm": "audio/webm", "m4a": "audio/mp4"}
-            mime_type = mime_type_map.get(file_ext, "audio/wav")
-            data_uri = f"data:{mime_type};base64,{audio_data}"
-            
-            transcript_text = None
-            
-            # 3a. Try dedicated audio transcriptions endpoint (paid models, requires $0.50 balance)
             try:
-                paid_models = ["openai/whisper-large-v3-turbo", "openai/whisper-large-v3"]
-                for model_name in paid_models:
-                    try:
-                        print(f"[Voice] Trying OpenRouter paid transcription model {model_name}...")
-                        payload = {
-                            "model": model_name,
-                            "input_audio": {
-                                "data": audio_data,
-                                "format": file_ext
-                            }
-                        }
-                        
-                        req = urllib.request.Request(
-                            "https://openrouter.ai/api/v1/audio/transcriptions",
-                            data=json.dumps(payload).encode("utf-8"),
-                            headers={
-                                "Authorization": f"Bearer {settings.OPENROUTER_API_KEY}",
-                                "Content-Type": "application/json",
-                            },
-                            method="POST"
-                        )
-                        
-                        with urllib.request.urlopen(req, timeout=60) as response:
-                            res_data = json.loads(response.read().decode("utf-8"))
-                            if "text" in res_data:
-                                transcript_text = res_data["text"].strip()
-                                if transcript_text:
-                                    break
-                            elif "error" in res_data:
-                                error_msg = res_data["error"].get("message", "Unknown OpenRouter error")
-                                raise Exception(error_msg)
-                    except Exception as model_err:
-                        if "402" in str(model_err) or "Payment Required" in str(model_err) or "balance" in str(model_err).lower():
-                            print(f"[Voice] Paid transcription model {model_name} needs $0.50 balance. Skipping.")
-                        else:
-                            print(f"[Voice] Paid model {model_name} failed: {model_err}")
-                        last_err = model_err
-                
-                if transcript_text:
-                    return {"transcript": transcript_text}
-            except Exception as or_err:
-                print(f"[Voice] OpenRouter paid transcription failed: {or_err}")
-                last_err = or_err
-            
-            # 3b. Try free multimodal chat models that may accept audio input
-            free_models = [
-                "google/gemini-2.0-flash-exp:free",
-                "google/gemma-3-27b-it:free",
-                "mistralai/mistral-small-3.1-24b-instruct:free"
-            ]
-            try:
-                for model_name in free_models:
-                    try:
-                        print(f"[Voice] Trying free OpenRouter chat model {model_name} for audio transcription...")
-                        chat_payload = {
-                            "model": model_name,
-                            "messages": [
-                                {
-                                    "role": "user",
-                                    "content": [
-                                        {"type": "text", "text": "Transcribe this audio recording exactly. Return only the transcribed text, nothing else."},
-                                        {"type": "audio_url", "audio_url": {"url": data_uri}}
-                                    ]
-                                }
-                            ],
-                            "max_tokens": 500
-                        }
-                        
-                        req = urllib.request.Request(
-                            "https://openrouter.ai/api/v1/chat/completions",
-                            data=json.dumps(chat_payload).encode("utf-8"),
-                            headers={
-                                "Authorization": f"Bearer {settings.OPENROUTER_API_KEY}",
-                                "Content-Type": "application/json",
-                            },
-                            method="POST"
-                        )
-                        
-                        with urllib.request.urlopen(req, timeout=60) as response:
-                            chat_data = json.loads(response.read().decode("utf-8"))
-                            if "choices" in chat_data and len(chat_data["choices"]) > 0:
-                                text = chat_data["choices"][0]["message"]["content"].strip()
-                                if text:
-                                    transcript_text = text
-                                    break
-                            elif "error" in chat_data:
-                                error_msg = chat_data["error"].get("message", "")
-                                print(f"[Voice] Free model {model_name} error: {error_msg}")
-                    except Exception as free_err:
-                        print(f"[Voice] Free model {model_name} failed: {free_err}")
-                        last_err = free_err
-                
-                if transcript_text:
-                    print(f"[Voice] Free model transcription successful: '{transcript_text[:60]}...'")
-                    return {"transcript": transcript_text}
-            except Exception as or_free_err:
-                print(f"[Voice] OpenRouter free chat transcription failed: {or_free_err}")
-                last_err = or_free_err
+                print("[Voice] Trying OpenRouter gemini-2.0-flash-exp:free...")
+                data_uri = f"data:{mime};base64,{b64}"
+                chat_payload = {
+                    "model": "google/gemini-2.0-flash-exp:free",
+                    "messages": [{
+                        "role": "user",
+                        "content": [
+                            {"type": "text", "text": "Transcribe this audio exactly. Return ONLY the transcribed text, nothing else."},
+                            {"type": "audio_url", "audio_url": {"url": data_uri}}
+                        ]
+                    }],
+                    "max_tokens": 500
+                }
+                req = urllib.request.Request(
+                    "https://openrouter.ai/api/v1/chat/completions",
+                    data=json.dumps(chat_payload).encode("utf-8"),
+                    headers={
+                        "Authorization": f"Bearer {settings.OPENROUTER_API_KEY}",
+                        "Content-Type": "application/json",
+                    },
+                    method="POST"
+                )
+                with urllib.request.urlopen(req, timeout=60) as resp:
+                    chat_data = json.loads(resp.read().decode("utf-8"))
 
-        # If keys are present but all failed — fall back to mock transcription
-        # so the frontend never gets a hard error and can still use the app
-        print(f"[Voice] All transcription methods failed. Returning empty to let user type command.")
+                if "choices" in chat_data and len(chat_data["choices"]) > 0:
+                    text = chat_data["choices"][0]["message"]["content"].strip()
+                    if text:
+                        print(f"[Voice] OpenRouter result: '{text[:80]}'")
+                        return {"transcript": text}
+                elif "error" in chat_data:
+                    err_msg = chat_data["error"].get("message", "")
+                    print(f"[Voice] OpenRouter error: {err_msg}")
+                    if "402" in err_msg or "credits" in err_msg or "balance" in err_msg:
+                        return {"transcript": f"[ERROR: OpenRouter needs credits. Add funds to your OpenRouter account.]"}
+                    return {"transcript": f"[ERROR: {err_msg[:100]}]"}
+            except urllib.error.HTTPError as he:
+                body = he.read().decode("utf-8")
+                print(f"[Voice] OpenRouter HTTP {he.code}: {body[:200]}")
+                if "402" in str(he.code):
+                    return {"transcript": "[ERROR: OpenRouter needs minimum $0.50 balance for audio.]"}
+                return {"transcript": f"[ERROR: OpenRouter HTTP {he.code}]"}
+            except Exception as or_err:
+                print(f"[Voice] OpenRouter error: {or_err}")
+
+        print("[Voice] All transcription methods failed.")
         return {"transcript": ""}
 
     except HTTPException as he:
         raise he
     except Exception as e:
-        print(f"[Voice] Audio transcription completely failed: {e}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"Audio transcription failed: {str(e)}"
-        )
+        print(f"[Voice] Critical error: {e}")
+        return {"transcript": f"[ERROR: {str(e)[:80]}]"}
     finally:
         if temp_file_path and os.path.exists(temp_file_path):
-            try:
-                os.remove(temp_file_path)
-            except Exception as err:
-                print(f"[Voice] Failed to remove temp audio file: {err}")
+            try: os.remove(temp_file_path)
+            except: pass
 
 @router.post("/omi-webhook")
 async def omi_webhook(
