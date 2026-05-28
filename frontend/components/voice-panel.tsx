@@ -115,8 +115,11 @@ export default function VoicePanel({ onTriggerWorkflow, onResearchQuery, isExecu
           for (let i = 0; i < event.results.length; i++) {
             fullText += event.results[i][0].transcript + " ";
           }
-          recognitionTranscriptRef.current = fullText.trim();
-          console.log("[WebSpeech] Interim transcript:", recognitionTranscriptRef.current);
+          const text = fullText.trim();
+          recognitionTranscriptRef.current = text;
+          console.log("[WebSpeech] Interim transcript:", text);
+          setPendingTranscript(text);
+          setEditedTranscript(text);
         };
 
         recognition.onerror = (err: any) => {
@@ -325,39 +328,75 @@ export default function VoicePanel({ onTriggerWorkflow, onResearchQuery, isExecu
           </motion.div>
         )}
 
-        {/* ✅ Transcript Preview — confirm before deploying */}
+        {/* ✅ Transcript Preview — confirm before deploying / live transcribing */}
         <AnimatePresence>
-          {phase === "preview" && (
+          {["preview", "listening", "transcribing"].includes(phase) && (
             <motion.div
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: "auto" }}
               exit={{ opacity: 0, height: 0 }}
               className="w-full px-1 space-y-1.5"
             >
-              <p className="text-[9px] text-emerald-400 font-mono uppercase tracking-widest flex items-center gap-1">
-                <Edit3 className="w-3 h-3" /> {pendingTranscript ? "Transcribed — edit if needed" : "Type your command below"}
+              <p className={`text-[9px] font-mono uppercase tracking-widest flex items-center gap-1.5 ${
+                phase === "listening" ? "text-cyan-400" : phase === "transcribing" ? "text-amber-400" : "text-emerald-400"
+              }`}>
+                {phase === "listening" ? (
+                  <>
+                    <span className="w-1.5 h-1.5 bg-cyan-400 rounded-full animate-ping mr-0.5" />
+                    Listening & Transcribing Live...
+                  </>
+                ) : phase === "transcribing" ? (
+                  <>
+                    <span className="w-1.5 h-1.5 bg-amber-400 rounded-full animate-pulse mr-0.5" />
+                    Finalizing transcription...
+                  </>
+                ) : (
+                  <>
+                    <Edit3 className="w-3 h-3" />
+                    {pendingTranscript ? "Transcribed — edit if needed" : "Type your command below"}
+                  </>
+                )}
               </p>
               <textarea
                 value={editedTranscript}
                 onChange={(e) => setEditedTranscript(e.target.value)}
+                readOnly={phase === "listening" || phase === "transcribing"}
                 rows={2}
-                className="w-full glass-input rounded-lg p-1.5 text-[11px] outline-none resize-none leading-relaxed"
-                placeholder="Type your command here, e.g. Create a launch strategy for an AI fitness app..."
+                className={`w-full glass-input rounded-lg p-1.5 text-[11px] outline-none resize-none leading-relaxed transition-all duration-300 ${
+                  phase === "listening" ? "border-cyan-500/50 bg-cyan-950/5" : ""
+                }`}
+                placeholder={phase === "listening" ? "Speaking... speak now..." : "Type your command here, e.g. Create a launch strategy for an AI fitness app..."}
               />
               <div className="flex gap-1.5">
                 <motion.button
                   onClick={confirmAndDeploy}
+                  disabled={phase === "listening" || phase === "transcribing" || !editedTranscript.trim()}
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.97 }}
-                  className="flex-1 bg-gradient-to-r from-emerald-500/15 to-cyan-500/15 hover:from-emerald-500/25 hover:to-cyan-500/25 border border-emerald-500/40 text-emerald-300 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-1.5 font-mono"
+                  className="flex-1 bg-gradient-to-r from-emerald-500/15 to-cyan-500/15 hover:from-emerald-500/25 hover:to-cyan-500/25 border border-emerald-500/40 text-emerald-300 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-1.5 font-mono disabled:opacity-40 disabled:pointer-events-none"
                 >
                   <Play className="w-3 h-3" /> Deploy
                 </motion.button>
                 <motion.button
-                  onClick={cancelPreview}
+                  onClick={() => {
+                    const text = editedTranscript.trim();
+                    if (text) {
+                      onResearchQuery(text);
+                    }
+                  }}
+                  disabled={phase === "listening" || phase === "transcribing" || isResearching || !editedTranscript.trim()}
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.97 }}
-                  className="px-3 bg-gray-800/50 hover:bg-gray-700/50 border border-gray-700 text-gray-400 py-1.5 rounded-lg text-[10px] font-mono uppercase tracking-widest transition-all"
+                  className="flex-1 bg-gradient-to-r from-cyan-500/15 to-emerald-500/15 hover:from-cyan-500/25 hover:to-cyan-500/25 border border-cyan-500/40 text-cyan-300 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-1.5 font-mono disabled:opacity-40 disabled:pointer-events-none"
+                >
+                  <Search className="w-3 h-3" /> {isResearching ? "Searching..." : "Search Live"}
+                </motion.button>
+                <motion.button
+                  onClick={cancelPreview}
+                  disabled={phase === "listening" || phase === "transcribing"}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.97 }}
+                  className="px-3 bg-gray-800/50 hover:bg-gray-700/50 border border-gray-700 text-gray-400 py-1.5 rounded-lg text-[10px] font-mono uppercase tracking-widest transition-all disabled:opacity-40 disabled:pointer-events-none"
                 >
                   Cancel
                 </motion.button>
