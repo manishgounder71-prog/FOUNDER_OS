@@ -565,7 +565,7 @@ export default function Home() {
                   <Cpu className="w-3.5 h-3.5 text-cyan-400" /> 2. Technical Depth
                 </h3>
                 <ul className="text-xs text-gray-400 leading-relaxed list-disc list-inside space-y-1 font-sans">
-                  <li><strong>Voice Intake</strong>: Integrates physical wearable telemetry (Omi device webhooks) and Whisper transcribing.</li>
+                  <li><strong>Voice Intake</strong>: Browser speech recognition and Omi wearable webhook support.</li>
                   <li><strong>Orchestration</strong>: Powered by Lyzr, coordinating sequential background agent queues using Server-Sent Events (SSE).</li>
                   <li><strong>Semantic Memory</strong>: Uses Qdrant cosine vector matching (local DB) to index and retrieve past contextual knowledge blocks.</li>
                 </ul>
