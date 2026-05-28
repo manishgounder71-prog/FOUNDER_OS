@@ -113,7 +113,9 @@ export async function executeDirectiveResearch(query: string): Promise<{ directi
  */
 export async function transcribeAudio(audioBlob: Blob, mockPrompt?: string): Promise<string> {
   const formData = new FormData();
-  formData.append("file", audioBlob, "recording.wav");
+  const mimeType = audioBlob.type || "audio/webm";
+  const extension = mimeType.includes("ogg") ? "ogg" : mimeType.includes("wav") ? "wav" : "webm";
+  formData.append("file", audioBlob, `recording.${extension}`);
   if (mockPrompt) {
     formData.append("mock_prompt", mockPrompt);
   }
@@ -123,7 +125,17 @@ export async function transcribeAudio(audioBlob: Blob, mockPrompt?: string): Pro
     body: formData,
   });
   if (!res.ok) {
-    throw new Error(`Failed to transcribe audio: ${res.statusText}`);
+    try {
+      const errData = await res.json();
+      if (errData && errData.detail) {
+        throw new Error(errData.detail);
+      }
+    } catch (e: any) {
+      if (e.message && !e.message.includes("Unexpected token")) {
+        throw e;
+      }
+    }
+    throw new Error(`Transcription API failed with status ${res.status}: ${res.statusText}`);
   }
   const data = await res.json();
   return data.transcript;

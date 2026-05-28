@@ -68,7 +68,15 @@ export default function VoicePanel({ onTriggerWorkflow, onResearchQuery, isExecu
     recognitionTranscriptRef.current = "";
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream);
+      let options = {};
+      if (typeof MediaRecorder !== "undefined") {
+        if (MediaRecorder.isTypeSupported("audio/webm")) {
+          options = { mimeType: "audio/webm" };
+        } else if (MediaRecorder.isTypeSupported("audio/ogg")) {
+          options = { mimeType: "audio/ogg" };
+        }
+      }
+      const mediaRecorder = new MediaRecorder(stream, options);
       mediaRecorderRef.current = mediaRecorder;
 
       // Web Audio API Analyzer
@@ -124,7 +132,8 @@ export default function VoicePanel({ onTriggerWorkflow, onResearchQuery, isExecu
       };
 
       mediaRecorder.onstop = async () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: "audio/wav" });
+        const mimeType = mediaRecorderRef.current?.mimeType || "audio/webm";
+        const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
         setPhase("transcribing");
         setStatusMsg("Processing speech...");
 
@@ -142,7 +151,7 @@ export default function VoicePanel({ onTriggerWorkflow, onResearchQuery, isExecu
           } catch (err: any) {
             // Backend transcription failed — show a helpful error with edit box
             console.warn("[Voice] Backend transcription unavailable:", err.message);
-            setError("Voice transcription unavailable. Type your command below and click Deploy.");
+            setError(err.message || "Voice transcription failed.");
             setPhase("standby");
             setStatusMsg("Ready to receive commands...");
             stream.getTracks().forEach(t => t.stop());

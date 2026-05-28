@@ -39,6 +39,7 @@ async def transcribe_audio(
             content = await file.read()
             buffer.write(content)
 
+        last_err = None
         # 1. Try OpenAI Whisper if API key is present
         if settings.OPENAI_API_KEY:
             try:
@@ -51,6 +52,7 @@ async def transcribe_audio(
                 return {"transcript": transcript.text}
             except Exception as whisper_err:
                 print(f"[Voice] Whisper transcription failed: {whisper_err}. Trying Gemini...")
+                last_err = whisper_err
 
         if settings.GEMINI_API_KEY:
             try:
@@ -62,7 +64,6 @@ async def transcribe_audio(
                 # Loop through available models to ensure compatibility
                 models_to_try = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
                 response = None
-                last_err = None
                 for m_name in models_to_try:
                     try:
                         print(f"[Voice] Trying Gemini model {m_name}...")
@@ -88,16 +89,30 @@ async def transcribe_audio(
                 if transcript_text:
                     return {"transcript": transcript_text}
             except Exception as gemini_err:
-                print(f"[Voice] Gemini transcription fallback failed: {gemini_err}. Trying simulated fallback...")
+                print(f"[Voice] Gemini transcription fallback failed: {gemini_err}")
+                last_err = gemini_err
 
-        # 3. Use high-fidelity simulated transcription fallback if keys are missing/failed
-        print("[Voice] No API keys available or transcriptions failed. Using simulated transcription fallback.")
-        return {"transcript": "Create a launch strategy for an AI study app."}
+        # If keys are present but both failed
+        if (settings.OPENAI_API_KEY or settings.GEMINI_API_KEY) and last_err:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Transcription failed: {str(last_err)}"
+            )
 
+        # If keys are missing entirely
+        raise HTTPException(
+            status_code=503,
+            detail="Transcription service is not configured. Please set OPENAI_API_KEY or GEMINI_API_KEY in the environment."
+        )
+
+    except HTTPException as he:
+        raise he
     except Exception as e:
         print(f"[Voice] Audio transcription completely failed: {e}")
-        # Always return the mock fallback instead of throwing error to keep the client interactive
-        return {"transcript": "Create a launch strategy for an AI study app."}
+        raise HTTPException(
+            status_code=500,
+            detail=f"Audio transcription failed: {str(e)}"
+        )
     finally:
         if temp_file_path and os.path.exists(temp_file_path):
             try:
