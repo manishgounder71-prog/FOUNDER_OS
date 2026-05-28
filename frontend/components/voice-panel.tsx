@@ -131,6 +131,19 @@ export default function VoicePanel({ onTriggerWorkflow, onResearchQuery, isExecu
           }
         };
 
+        recognition.onend = () => {
+          // Robust auto-restart if MediaRecorder is still recording (prevents silent auto-stops)
+          const isStillRecording = mediaRecorderRef.current && mediaRecorderRef.current.state === "recording";
+          if (isStillRecording) {
+            try {
+              recognition.start();
+              console.log("[WebSpeech] Restarted SpeechRecognition after auto-stop.");
+            } catch (e) {
+              console.warn("[WebSpeech] Failed to restart SpeechRecognition:", e);
+            }
+          }
+        };
+
         recognitionRef.current = recognition;
         try { recognition.start(); } catch (e) { console.error("[WebSpeech] Recognition start failed:", e); }
       }
@@ -166,8 +179,8 @@ export default function VoicePanel({ onTriggerWorkflow, onResearchQuery, isExecu
             
             // Show a friendly notice if it's the OpenRouter balance/credit issue, else general message
             const friendlyErr = err.message && (err.message.includes("50") || err.message.includes("balance") || err.message.includes("402"))
-              ? "Account balance too low on OpenRouter (requires >= $0.50). Add GEMINI_API_KEY in .env for free fallback or type below."
-              : "Voice not detected. Type your command and click Deploy.";
+              ? "Using Offline Mode (OpenRouter requires >= $0.50). Add GEMINI_API_KEY in .env for free fallback, or type below."
+              : "Voice not detected. Type your command manually and click Deploy.";
             setError(friendlyErr);
             stream.getTracks().forEach(t => t.stop());
             return;
