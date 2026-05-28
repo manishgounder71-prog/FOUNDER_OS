@@ -3,7 +3,7 @@
 import React, { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Mic, MicOff, Radio, Play, AlertCircle, Zap, Search } from "lucide-react";
-import { simulateOmiWebhook, transcribeAudio } from "@/lib/api";
+import { simulateOmiWebhook } from "@/lib/api";
 
 interface VoicePanelProps {
   onTriggerWorkflow: (workflowId: string, promptText: string) => void;
@@ -19,12 +19,6 @@ const PRESETS = [
   "Find market opportunities for a B2B SaaS pricing optimization dashboard.",
 ];
 
-const STATUS = [
-  { key: "idle",   label: "STANDBY",         color: "text-gray-500" },
-  { key: "deploy", label: "DEPLOYING",        color: "text-purple-400" },
-  { key: "run",    label: "EXECUTING",        color: "text-green-400" },
-];
-
 export default function VoicePanel({ onTriggerWorkflow, onResearchQuery, isExecuting, isResearching }: VoicePanelProps) {
   const [recording, setRecording] = useState(false);
   const [phase, setPhase] = useState("idle");
@@ -32,98 +26,69 @@ export default function VoicePanel({ onTriggerWorkflow, onResearchQuery, isExecu
   const [preset, setPreset] = useState(PRESETS[0]);
   const [prompt, setPrompt] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [audioLevel, setAudioLevel] = useState(0);
 
-  const mediaRecorder = useRef<MediaRecorder | null>(null);
-  const audioChunks = useRef<Blob[]>([]);
-  const audioContext = useRef<AudioContext | null>(null);
-  const animFrame = useRef<number>(0);
+  const recognitionRef = useRef<any>(null);
 
   React.useEffect(() => {
     return () => {
-      if (mediaRecorder.current && mediaRecorder.current.state !== "inactive") {
-        mediaRecorder.current.stop();
-      }
-      if (animFrame.current) cancelAnimationFrame(animFrame.current);
-      if (audioContext.current) audioContext.current.close().catch(() => {});
+      if (recognitionRef.current) try { recognitionRef.current.abort(); } catch (e) {}
     };
   }, []);
 
-  const startRecording = async () => {
+  const startRecording = () => {
     setError(null);
-    setAudioLevel(0);
-    audioChunks.current = [];
+    const Speech = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!Speech) {
+      setError("Speech recognition requires Chrome or Edge. Type your command below.");
+      return;
+    }
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const r = new Speech();
+      r.continuous = false;
+      r.interimResults = false;
+      r.lang = "en-US";
 
-      // Audio level meter (visual feedback)
-      const ctx = new AudioContext();
-      const src = ctx.createMediaStreamSource(stream);
-      const analyser = ctx.createAnalyser();
-      analyser.fftSize = 128;
-      src.connect(analyser);
-      audioContext.current = ctx;
-
-      const data = new Uint8Array(analyser.frequencyBinCount);
-      const updateLevel = () => {
-        analyser.getByteFrequencyData(data);
-        const avg = data.reduce((a, b) => a + b, 0) / data.length;
-        setAudioLevel(Math.min(100, Math.round(avg * 2)));
-        animFrame.current = requestAnimationFrame(updateLevel);
-      };
-      animFrame.current = requestAnimationFrame(updateLevel);
-
-      const mr = new MediaRecorder(stream, {
-        mimeType: MediaRecorder.isTypeSupported("audio/webm") ? "audio/webm" : "audio/wav"
-      });
-
-      mr.ondataavailable = (e) => {
-        if (e.data.size > 0) audioChunks.current.push(e.data);
-      };
-
-      mr.onstop = async () => {
-        if (animFrame.current) cancelAnimationFrame(animFrame.current);
-        if (audioContext.current) audioContext.current.close().catch(() => {});
-        audioContext.current = null;
-        stream.getTracks().forEach(t => t.stop());
-        const blob = new Blob(audioChunks.current, { type: mr.mimeType });
-        console.log(`[Voice] Blob size: ${blob.size}, type: ${blob.type}`);
-        if (blob.size < 200) {
-          setError("Audio too short or no sound detected. Speak louder or check your mic.");
-          setRecording(false);
-          return;
-        }
-        setStatus("Transcribing via Gemini...");
-        try {
-          const text = await transcribeAudio(blob);
-          if (text) {
-            setPrompt(text);
-            setStatus(`Ready: "${text.slice(0, 60)}${text.length > 60 ? "..." : ""}"`);
-          } else {
-            setError("Gemini returned empty — backend could not transcribe audio.");
-            setStatus("Transcription failed.");
-          }
-        } catch (err: any) {
-          setError(`API error: ${err.message || "Unknown error"}`);
-          setStatus("Transcription failed.");
-        }
+      r.onresult = (e: any) => {
+        const text = e.results[e.results.length - 1][0].transcript;
+        setPrompt(text);
+        setStatus(`Ready: "${text.slice(0, 60)}${text.length > 60 ? "..." : ""}"`);
         setRecording(false);
       };
 
-      mr.start();
-      mediaRecorder.current = mr;
+      r.onerror = (e: any) => {
+        setRecording(false);
+        recognitionRef.current = null;
+        const map: Record<string, string> = {
+          "not-allowed": "Microphone blocked. Allow mic access in browser settings.",
+          "no-speech": "Microphone active but no speech heard. Try speaking louder or check your mic.",
+          "aborted": "",
+          "audio-capture": "No microphone found.",
+          "network": "Speech service unreachable. Check your internet connection.",
+          "service-not-allowed": "Speech service blocked on this device.",
+        };
+        const msg = map[e.error];
+        if (msg) setError(msg);
+      };
+
+      r.onend = () => {
+        setRecording(false);
+      };
+
+      recognitionRef.current = r;
+      r.start();
       setRecording(true);
-      setStatus("Recording... speak now.");
+      setStatus("Listening...");
     } catch {
-      setError("Microphone access blocked or no mic found.");
+      setError("Could not start voice recognition. Type your command instead.");
     }
   };
 
   const stopRecording = () => {
-    if (mediaRecorder.current && mediaRecorder.current.state !== "inactive") {
-      mediaRecorder.current.stop();
-      mediaRecorder.current = null;
+    if (recognitionRef.current) {
+      try { recognitionRef.current.stop(); } catch (e) {}
+      recognitionRef.current = null;
     }
+    setRecording(false);
   };
 
   const deploy = async () => {
@@ -144,7 +109,7 @@ export default function VoicePanel({ onTriggerWorkflow, onResearchQuery, isExecu
     }
   };
 
-  const ringColor = recording
+  const micColor = recording
     ? "border-cyan-400 shadow-[0_0_30px_rgba(0,212,255,0.4)]"
     : isExecuting
     ? "border-purple-500 shadow-[0_0_30px_rgba(168,85,247,0.3)] animate-pulse"
@@ -167,45 +132,31 @@ export default function VoicePanel({ onTriggerWorkflow, onResearchQuery, isExecu
           </motion.div>
           <h2 className="text-sm font-bold tracking-widest text-gray-100 uppercase font-mono">Voice Command Center</h2>
         </div>
-        <p className="text-[10px] text-gray-500 tracking-wide">Speak or type — text goes to the search box below</p>
+        <p className="text-[10px] text-gray-500 tracking-wide">Speak or type — text goes to the input below</p>
       </div>
 
       <div className="flex flex-col items-center justify-center py-1 gap-2.5">
         <div className="relative flex items-center justify-center">
           {recording && (
             <>
-              <div className="absolute w-24 h-24 rounded-full border border-cyan-400/30 neural-ring transition-all duration-75" style={{ transform: `scale(${1 + (audioLevel / 100) * 0.2})` }} />
-              <div className="absolute w-24 h-24 rounded-full border border-cyan-400/20 neural-ring transition-all duration-75" style={{ transform: `scale(${1.15 + (audioLevel / 100) * 0.3})`, animationDelay: "0.3s" }} />
-              <div className="absolute w-24 h-24 rounded-full border border-cyan-400/10 neural-ring transition-all duration-75" style={{ transform: `scale(${1.3 + (audioLevel / 100) * 0.4})`, animationDelay: "0.6s" }} />
+              <div className="absolute w-24 h-24 rounded-full border border-cyan-400/30 neural-ring animate-ping" />
+              <div className="absolute w-24 h-24 rounded-full border border-cyan-400/20 neural-ring animate-ping" style={{ animationDelay: "0.3s" }} />
+              <div className="absolute w-24 h-24 rounded-full border border-cyan-400/10 neural-ring animate-ping" style={{ animationDelay: "0.6s" }} />
             </>
           )}
-
-          {recording ? (
-            <div className={`w-16 h-16 rounded-full border-2 ${ringColor} flex items-center justify-center bg-black/50`}>
-              <div className="flex items-end gap-0.5 h-7 px-1">
-                {[...Array(5)].map((_, i) => {
-                  const h = Math.max(4, Math.min(28, (audioLevel / 100) * 28 * (0.3 + i * 0.18) + Math.random() * 3));
-                  return (
-                    <span key={i} className="w-1 rounded-full bg-cyan-400 transition-all duration-75" style={{ height: `${h}px`, opacity: 0.5 + i * 0.1 }} />
-                  );
-                })}
-              </div>
-            </div>
-          ) : (
-            <motion.div whileHover={{ scale: 1.05 }} className={`w-16 h-16 rounded-full border-2 ${ringColor} flex items-center justify-center bg-black/50`}>
-              {isExecuting ? (
-                <div className="relative"><Zap className="w-5 h-5 text-purple-400" /><div className="absolute inset-0 bg-purple-400/20 rounded-full blur-md" /></div>
-              ) : (
-                <Mic className="w-5 h-5 text-gray-500" />
-              )}
-            </motion.div>
-          )}
+          <div className={`w-16 h-16 rounded-full border-2 ${micColor} flex items-center justify-center bg-black/50 transition-all duration-300`}>
+            {isExecuting ? (
+              <Zap className="w-5 h-5 text-purple-400" />
+            ) : (
+              <Mic className={`w-5 h-5 ${recording ? "text-cyan-400" : "text-gray-500"}`} />
+            )}
+          </div>
         </div>
 
         <AnimatePresence mode="wait">
           <motion.div key={phase + String(recording)} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} className="text-center">
             <p className={`text-[10px] font-mono font-bold tracking-widest uppercase ${recording ? "text-cyan-400" : "text-gray-500"}`}>
-              {recording ? "RECORDING — Speak Now" : "STANDBY"}
+              {recording ? "LISTENING — Speak Now" : phase === "deploy" ? "DEPLOYING" : phase === "run" ? "EXECUTING" : "STANDBY"}
             </p>
             <p className="text-[9px] text-gray-600 mt-0.5 font-mono truncate max-w-[200px]">{status}</p>
           </motion.div>
