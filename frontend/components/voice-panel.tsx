@@ -32,23 +32,47 @@ export default function VoicePanel({ onTriggerWorkflow, onResearchQuery, isExecu
   const [preset, setPreset] = useState(PRESETS[0]);
   const [prompt, setPrompt] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [audioLevel, setAudioLevel] = useState(0);
 
   const mediaRecorder = useRef<MediaRecorder | null>(null);
   const audioChunks = useRef<Blob[]>([]);
+  const audioContext = useRef<AudioContext | null>(null);
+  const animFrame = useRef<number>(0);
 
   React.useEffect(() => {
     return () => {
       if (mediaRecorder.current && mediaRecorder.current.state !== "inactive") {
         mediaRecorder.current.stop();
       }
+      if (animFrame.current) cancelAnimationFrame(animFrame.current);
+      if (audioContext.current) audioContext.current.close().catch(() => {});
     };
   }, []);
 
   const startRecording = async () => {
     setError(null);
+    setAudioLevel(0);
     audioChunks.current = [];
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
+      // Audio level meter (visual feedback)
+      const ctx = new AudioContext();
+      const src = ctx.createMediaStreamSource(stream);
+      const analyser = ctx.createAnalyser();
+      analyser.fftSize = 128;
+      src.connect(analyser);
+      audioContext.current = ctx;
+
+      const data = new Uint8Array(analyser.frequencyBinCount);
+      const updateLevel = () => {
+        analyser.getByteFrequencyData(data);
+        const avg = data.reduce((a, b) => a + b, 0) / data.length;
+        setAudioLevel(Math.min(100, Math.round(avg * 2)));
+        animFrame.current = requestAnimationFrame(updateLevel);
+      };
+      animFrame.current = requestAnimationFrame(updateLevel);
+
       const mr = new MediaRecorder(stream, {
         mimeType: MediaRecorder.isTypeSupported("audio/webm") ? "audio/webm" : "audio/wav"
       });
@@ -58,8 +82,17 @@ export default function VoicePanel({ onTriggerWorkflow, onResearchQuery, isExecu
       };
 
       mr.onstop = async () => {
+        if (animFrame.current) cancelAnimationFrame(animFrame.current);
+        if (audioContext.current) audioContext.current.close().catch(() => {});
+        audioContext.current = null;
         stream.getTracks().forEach(t => t.stop());
         const blob = new Blob(audioChunks.current, { type: mr.mimeType });
+        console.log(`[Voice] Blob size: ${blob.size}, type: ${blob.type}`);
+        if (blob.size < 200) {
+          setError("Audio too short or no sound detected. Speak louder or check your mic.");
+          setRecording(false);
+          return;
+        }
         setStatus("Transcribing via Gemini...");
         try {
           const text = await transcribeAudio(blob);
@@ -140,18 +173,21 @@ export default function VoicePanel({ onTriggerWorkflow, onResearchQuery, isExecu
         <div className="relative flex items-center justify-center">
           {recording && (
             <>
-              <div className="absolute w-24 h-24 rounded-full border border-cyan-400/30 neural-ring animate-pulse" />
-              <div className="absolute w-24 h-24 rounded-full border border-cyan-400/20 neural-ring animate-pulse" style={{ animationDelay: "0.3s", transform: "scale(1.15)" }} />
-              <div className="absolute w-24 h-24 rounded-full border border-cyan-400/10 neural-ring animate-pulse" style={{ animationDelay: "0.6s", transform: "scale(1.3)" }} />
+              <div className="absolute w-24 h-24 rounded-full border border-cyan-400/30 neural-ring transition-all duration-75" style={{ transform: `scale(${1 + (audioLevel / 100) * 0.2})` }} />
+              <div className="absolute w-24 h-24 rounded-full border border-cyan-400/20 neural-ring transition-all duration-75" style={{ transform: `scale(${1.15 + (audioLevel / 100) * 0.3})`, animationDelay: "0.3s" }} />
+              <div className="absolute w-24 h-24 rounded-full border border-cyan-400/10 neural-ring transition-all duration-75" style={{ transform: `scale(${1.3 + (audioLevel / 100) * 0.4})`, animationDelay: "0.6s" }} />
             </>
           )}
 
           {recording ? (
             <div className={`w-16 h-16 rounded-full border-2 ${ringColor} flex items-center justify-center bg-black/50`}>
               <div className="flex items-end gap-0.5 h-7 px-1">
-                {[...Array(5)].map((_, i) => (
-                  <span key={i} className="w-1 rounded-full bg-cyan-400 animate-pulse" style={{ height: `${8 + i * 4}px`, animationDelay: `${i * 0.1}s` }} />
-                ))}
+                {[...Array(5)].map((_, i) => {
+                  const h = Math.max(4, Math.min(28, (audioLevel / 100) * 28 * (0.3 + i * 0.18) + Math.random() * 3));
+                  return (
+                    <span key={i} className="w-1 rounded-full bg-cyan-400 transition-all duration-75" style={{ height: `${h}px`, opacity: 0.5 + i * 0.1 }} />
+                  );
+                })}
               </div>
             </div>
           ) : (
