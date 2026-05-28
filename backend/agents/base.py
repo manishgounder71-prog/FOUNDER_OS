@@ -15,7 +15,7 @@ def generate_text_gemini(prompt: str, system_instruction: str = "") -> str:
     """Helper to run text generation using Gemini as a fallback.
     Tries multiple model names (gemini-1.5-flash, gemini-pro) to ensure version compatibility.
     """
-    models_to_try = ["gemini-1.5-flash", "gemini-pro"]
+    models_to_try = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash", "gemini-pro"]
     last_error = None
     
     for model_name in models_to_try:

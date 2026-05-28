@@ -52,22 +52,37 @@ async def transcribe_audio(
             except Exception as whisper_err:
                 print(f"[Voice] Whisper transcription failed: {whisper_err}. Trying Gemini...")
 
-        # 2. Try Gemini transcription fallback if API key is present
         if settings.GEMINI_API_KEY:
             try:
                 import google.generativeai as genai
                 genai.configure(api_key=settings.GEMINI_API_KEY)
                 print(f"[Voice] Uploading {temp_file_path} to Gemini for transcription...")
                 audio_file = genai.upload_file(path=temp_file_path)
-                model = genai.GenerativeModel("gemini-1.5-flash")
-                response = model.generate_content([
-                    audio_file,
-                    "Please transcribe this audio recording exactly. Return only the transcription text, nothing else."
-                ])
+                
+                # Loop through available models to ensure compatibility
+                models_to_try = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
+                response = None
+                last_err = None
+                for m_name in models_to_try:
+                    try:
+                        print(f"[Voice] Trying Gemini model {m_name}...")
+                        model = genai.GenerativeModel(m_name)
+                        response = model.generate_content([
+                            audio_file,
+                            "Please transcribe this audio recording exactly. Return only the transcription text, nothing else."
+                        ])
+                        break
+                    except Exception as model_err:
+                        print(f"[Voice] Gemini model {m_name} failed: {model_err}")
+                        last_err = model_err
+                
                 try:
                     audio_file.delete()
                 except Exception as delete_err:
                     print(f"[Voice] Failed to delete Gemini file: {delete_err}")
+                
+                if response is None and last_err:
+                    raise last_err
                 
                 transcript_text = response.text.strip()
                 if transcript_text:
