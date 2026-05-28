@@ -166,7 +166,7 @@ export default function VoicePanel({ onTriggerWorkflow, onResearchQuery, isExecu
             
             // Show a friendly notice if it's the OpenRouter balance/credit issue, else general message
             const friendlyErr = err.message && (err.message.includes("50") || err.message.includes("balance") || err.message.includes("402"))
-              ? "Account balance too low on OpenRouter (requires at least $0.50 for audio). Please type your command below."
+              ? "Account balance too low on OpenRouter (requires >= $0.50). Add GEMINI_API_KEY in .env for free fallback or type below."
               : "Voice not detected. Type your command and click Deploy.";
             setError(friendlyErr);
             stream.getTracks().forEach(t => t.stop());
