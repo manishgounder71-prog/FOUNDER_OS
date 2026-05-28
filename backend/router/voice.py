@@ -214,9 +214,8 @@ async def transcribe_audio(
 
         # If keys are present but all failed — fall back to mock transcription
         # so the frontend never gets a hard error and can still use the app
-        mock_transcript = "Research competitors for an AI note-taking app and generate a launch strategy"
-        print(f"[Voice] All transcription methods failed. Using offline mock: '{mock_transcript}'")
-        return {"transcript": mock_transcript}
+        print(f"[Voice] All transcription methods failed. Returning empty to let user type command.")
+        return {"transcript": ""}
 
     except HTTPException as he:
         raise he
