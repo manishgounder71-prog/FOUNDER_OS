@@ -3,7 +3,7 @@
 import React, { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Mic, MicOff, Radio, Play, AlertCircle, Zap, Search, CheckCircle, Edit3 } from "lucide-react";
-import { simulateOmiWebhook } from "@/lib/api";
+import { simulateOmiWebhook, transcribeAudio } from "@/lib/api";
 
 interface VoicePanelProps {
   onTriggerWorkflow: (workflowId: string, promptText: string) => void;
@@ -60,15 +60,56 @@ export default function VoicePanel({ onTriggerWorkflow, onResearchQuery, isExecu
     };
   }, []);
 
-  const startRecording = () => {
+  const startRecording = async () => {
     setError(null);
     setPendingTranscript("");
-    setEditedTranscript(customPrompt || "");
-    setPhase("preview");
-    setStatusMsg(customPrompt ? "Edit your command and click Deploy." : "Type your command below.");
+    setEditedTranscript("");
+    audioChunksRef.current = [];
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream, { mimeType: MediaRecorder.isTypeSupported("audio/webm") ? "audio/webm" : "audio/wav" });
+      mediaRecorderRef.current = mediaRecorder;
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) audioChunksRef.current.push(event.data);
+      };
+
+      mediaRecorder.onstop = async () => {
+        const mimeType = mediaRecorderRef.current?.mimeType || "audio/webm";
+        const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
+        setPhase("transcribing");
+        setStatusMsg("Transcribing via Gemini...");
+        let transcript = "";
+        try {
+          transcript = await transcribeAudio(audioBlob);
+        } catch (err: any) {
+          console.warn("[Voice] Backend transcription failed:", err.message);
+        }
+        setPendingTranscript(transcript || "");
+        setEditedTranscript(transcript || customPrompt || "");
+        setPhase("preview");
+        setStatusMsg(transcript ? "Review your command before deploying." : "Type your command below.");
+        stream.getTracks().forEach(t => t.stop());
+      };
+
+      mediaRecorder.start();
+      setIsRecording(true);
+      setPhase("listening");
+      setStatusMsg("Listening...");
+    } catch {
+      // Mic not available — just open preview for typing
+      setEditedTranscript(customPrompt || "");
+      setPhase("preview");
+      setStatusMsg("Type your command below.");
+    }
   };
 
-  const stopRecording = () => {};
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+    }
+  };
 
   const confirmAndDeploy = async () => {
     const text = editedTranscript.trim();
