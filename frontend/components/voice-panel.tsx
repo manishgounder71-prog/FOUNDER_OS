@@ -12,116 +12,137 @@ interface VoicePanelProps {
   isResearching: boolean;
 }
 
-const PRESET_PROMPTS = [
+const PRESETS = [
   "Create a launch strategy for an AI shopping app.",
   "Create a launch strategy for an AI study app.",
   "Research competitors for an AI note-taking app.",
   "Find market opportunities for a B2B SaaS pricing optimization dashboard.",
 ];
 
-const STATUS_PHASES = [
-  { key: "standby",      label: "STANDBY — Awaiting Command",         color: "text-gray-500" },
-  { key: "deploying",    label: "DEPLOYING — Agent Workforce Online",   color: "text-purple-400" },
-  { key: "running",      label: "EXECUTING — Agents Running...",        color: "text-green-400" },
+const STATUS = [
+  { key: "idle",   label: "STANDBY",         color: "text-gray-500" },
+  { key: "deploy", label: "DEPLOYING",        color: "text-purple-400" },
+  { key: "run",    label: "EXECUTING",        color: "text-green-400" },
 ];
 
 export default function VoicePanel({ onTriggerWorkflow, onResearchQuery, isExecuting, isResearching }: VoicePanelProps) {
-  const [isRecording, setIsRecording] = useState(false);
-  const [phase, setPhase] = useState<string>("standby");
-  const [statusMsg, setStatusMsg] = useState("Ready to receive commands...");
-  const [selectedPreset, setSelectedPreset] = useState(PRESET_PROMPTS[0]);
-  const [customPrompt, setCustomPrompt] = useState("");
+  const [recording, setRecording] = useState(false);
+  const [phase, setPhase] = useState("idle");
+  const [status, setStatus] = useState("Ready to receive commands...");
+  const [preset, setPreset] = useState(PRESETS[0]);
+  const [prompt, setPrompt] = useState("");
   const [error, setError] = useState<string | null>(null);
 
-  const recognitionRef = useRef<any>(null);
-  const recognitionTranscriptRef = useRef<string>("");
+  const recognition = useRef<any>(null);
+  const transcript = useRef("");
 
-  const currentPhase = STATUS_PHASES.find(p => p.key === phase) ?? STATUS_PHASES[0];
+  const currentStatus = STATUS.find(s => s.key === phase) ?? STATUS[0];
 
-  // Clean up on unmount
   React.useEffect(() => {
-    return () => {
-      if (recognitionRef.current) { try { recognitionRef.current.abort(); } catch (e) {} }
-    };
+    return () => { if (recognition.current) try { recognition.current.abort(); } catch (e) {} };
   }, []);
 
-  const startRecording = () => {
+  const startRecording = async () => {
     setError(null);
 
-    // Try Web Speech API (Chrome/Edge) for live transcription — no backend needed
-    const SpeechRecognitionClass = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (SpeechRecognitionClass) {
-      try {
-        const recognition = new SpeechRecognitionClass();
-        recognition.continuous = true;
-        recognition.interimResults = true;
-        recognition.lang = "en-US";
+    // Check browser support
+    const SpeechClass = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechClass) {
+      setError("Voice input needs Chrome or Edge.");
+      return;
+    }
 
-        recognition.onresult = (event: any) => {
-          let fullText = "";
-          for (let i = 0; i < event.results.length; i++) {
-            fullText += event.results[i][0].transcript;
-          }
-          recognitionTranscriptRef.current = fullText;
-          setCustomPrompt(fullText);
+    // Check mic permission first
+    try {
+      await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch {
+      setError("Microphone access blocked. Allow mic permissions in your browser and try again.");
+      return;
+    }
+
+    try {
+      const r = new SpeechClass();
+      r.continuous = false;
+      r.interimResults = true;
+      r.lang = "en-US";
+
+      r.onresult = (e: any) => {
+        let text = "";
+        for (let i = 0; i < e.results.length; i++) {
+          text += e.results[i][0].transcript;
+        }
+        transcript.current = text;
+        setPrompt(text);
+      };
+
+      r.onerror = (e: any) => {
+        recognition.current = null;
+        setRecording(false);
+        const msgs: Record<string, string> = {
+          "not-allowed": "Microphone blocked. Allow mic access in browser settings.",
+          "no-speech": "No speech heard. Try speaking louder or type instead.",
+          "aborted": "Recording stopped.",
+          "audio-capture": "No microphone found. Connect one and try again.",
         };
+        if (!transcript.current) {
+          setError(msgs[e.error] || `Voice error: ${e.error}`);
+          setStatus("Ready to receive commands...");
+        }
+      };
 
-        recognition.onerror = () => {
-          recognitionRef.current = null;
-          setIsRecording(false);
-          setStatusMsg("Ready to receive commands...");
-        };
+      r.onend = () => {
+        setRecording(false);
+        if (transcript.current) {
+          setPrompt(transcript.current);
+          setStatus(`Ready: "${transcript.current.slice(0, 60)}${transcript.current.length > 60 ? "..." : ""}"`);
+        } else {
+          setStatus("Ready to receive commands...");
+        }
+      };
 
-        recognition.onend = () => {
-          setIsRecording(false);
-        };
-
-        recognitionRef.current = recognition;
-        recognitionTranscriptRef.current = "";
-        recognition.start();
-        setIsRecording(true);
-        setStatusMsg("Listening... speak now.");
-        return;
-      } catch {
-        // Web Speech init failed — fall through
-      }
+      recognition.current = r;
+      transcript.current = "";
+      r.start();
+      setRecording(true);
+      setStatus("Listening... speak now.");
+    } catch {
+      setError("Could not start voice recognition. Type your command below.");
     }
   };
 
   const stopRecording = () => {
-    if (recognitionRef.current) {
-      try { recognitionRef.current.stop(); } catch (e) {}
-      recognitionRef.current = null;
+    if (recognition.current) {
+      try { recognition.current.stop(); } catch (e) {}
+      recognition.current = null;
     }
-    setIsRecording(false);
-    const finalText = recognitionTranscriptRef.current;
-    if (finalText) {
-      setCustomPrompt(finalText);
-      setStatusMsg(`Ready: "${finalText.slice(0, 60)}${finalText.length > 60 ? "..." : ""}"`);
+    setRecording(false);
+    if (transcript.current) {
+      setPrompt(transcript.current);
+      setStatus(`Ready: "${transcript.current.slice(0, 60)}${transcript.current.length > 60 ? "..." : ""}"`);
     } else {
-      setStatusMsg("No speech detected. Type your command below.");
+      setStatus("Stopped. Speak or type above.");
     }
   };
 
-  const handleOmiPush = async () => {
+  const deploy = async () => {
     setError(null);
-    const textToPush = customPrompt.trim() || selectedPreset;
-    if (!textToPush.trim()) { setError("Please select a preset or write a custom prompt."); return; }
-    setPhase("deploying");
-    setStatusMsg(`Dispatching: "${textToPush}"`);
+    const text = prompt.trim() || preset;
+    if (!text.trim()) { setError("Type or speak a command first."); return; }
+    setPhase("deploy");
+    setStatus(`Dispatching: "${text.slice(0, 50)}${text.length > 50 ? "..." : ""}"`);
     try {
-      const workflowId = await simulateOmiWebhook(textToPush);
-      setPhase("running");
-      setStatusMsg("Workforce online. Streaming...");
-      onTriggerWorkflow(workflowId, textToPush);
+      const id = await simulateOmiWebhook(text);
+      setPhase("run");
+      setStatus("Workforce online. Streaming...");
+      onTriggerWorkflow(id, text);
     } catch {
-      setError("Omi webhook simulation failed.");
-      setPhase("standby");
-      setStatusMsg("Ready to receive commands...");
+      setError("Workflow dispatch failed.");
+      setPhase("idle");
+      setStatus("Ready to receive commands...");
     }
   };
 
-  const ringColor = isRecording
+  const ringColor = recording
     ? "border-cyan-400 shadow-[0_0_30px_rgba(0,212,255,0.4)]"
     : isExecuting
     ? "border-purple-500 shadow-[0_0_30px_rgba(168,85,247,0.3)] animate-pulse"
@@ -134,48 +155,41 @@ export default function VoicePanel({ onTriggerWorkflow, onResearchQuery, isExecu
       transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
       className="glass-panel rounded-2xl p-4 py-3.5 relative overflow-hidden flex flex-col h-full justify-between hud-border"
     >
-      {/* Background glow orbs */}
       <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-500/6 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute bottom-0 left-0 w-24 h-24 bg-purple-500/5 rounded-full blur-2xl pointer-events-none" />
 
-      {/* Header */}
       <div>
         <div className="flex items-center gap-2 mb-1">
-          <motion.div animate={{ rotate: isRecording ? [0, 10, -10, 0] : 0 }} transition={{ repeat: Infinity, duration: 1.5 }}>
+          <motion.div animate={{ rotate: recording ? [0, 10, -10, 0] : 0 }} transition={{ repeat: Infinity, duration: 1.5 }}>
             <Radio className="w-4 h-4 text-cyan-400" />
           </motion.div>
           <h2 className="text-sm font-bold tracking-widest text-gray-100 uppercase font-mono">Voice Command Center</h2>
         </div>
-        <p className="text-[10px] text-gray-500 tracking-wide">Omi wearable integration — voice-first AI dispatch</p>
+        <p className="text-[10px] text-gray-500 tracking-wide">Speak or type — text goes to the search box below</p>
       </div>
 
-      {/* Central mic visualizer */}
       <div className="flex flex-col items-center justify-center py-1 gap-2.5">
         <div className="relative flex items-center justify-center">
-          {isRecording && (
+          {recording && (
             <>
-              <div className="absolute w-24 h-24 rounded-full border border-cyan-400/30 neural-ring transition-all duration-75" style={{ transform: `scale(${1 + 0.05})` }} />
-              <div className="absolute w-24 h-24 rounded-full border border-cyan-400/20 neural-ring transition-all duration-75" style={{ transform: `scale(${1.15 + 0.1})`, animationDelay: "0.6s" }} />
-              <div className="absolute w-24 h-24 rounded-full border border-cyan-400/10 neural-ring transition-all duration-75" style={{ transform: `scale(${1.3 + 0.15})`, animationDelay: "1.2s" }} />
+              <div className="absolute w-24 h-24 rounded-full border border-cyan-400/30 neural-ring animate-pulse" />
+              <div className="absolute w-24 h-24 rounded-full border border-cyan-400/20 neural-ring animate-pulse" style={{ animationDelay: "0.3s", transform: "scale(1.15)" }} />
+              <div className="absolute w-24 h-24 rounded-full border border-cyan-400/10 neural-ring animate-pulse" style={{ animationDelay: "0.6s", transform: "scale(1.3)" }} />
             </>
           )}
 
-          {isRecording ? (
-            <div className={`w-16 h-16 rounded-full border-2 ${ringColor} flex items-center justify-center bg-black/50 transition-all duration-300`}>
-              <div className="flex items-end gap-1 h-8 px-2">
-                {[...Array(8)].map((_, i) => {
-                  const multiplier = 0.25 + Math.sin((i / 7) * Math.PI) * 0.75;
-                  const barHeight = Math.max(4, Math.min(32, 14 * multiplier + Math.random() * 4));
-                  return (
-                    <span key={i} className="wave-bar rounded-full transition-all duration-75" style={{ width: "3px", height: `${barHeight}px`, background: `rgba(6, 182, 212, ${0.4 + i * 0.08})` }} />
-                  );
-                })}
+          {recording ? (
+            <div className={`w-16 h-16 rounded-full border-2 ${ringColor} flex items-center justify-center bg-black/50`}>
+              <div className="flex items-end gap-0.5 h-7 px-1">
+                {[...Array(5)].map((_, i) => (
+                  <span key={i} className="w-1 rounded-full bg-cyan-400 animate-pulse" style={{ height: `${8 + i * 4}px`, animationDelay: `${i * 0.1}s` }} />
+                ))}
               </div>
             </div>
           ) : (
-            <motion.div whileHover={{ scale: 1.05 }} className={`w-16 h-16 rounded-full border-2 ${ringColor} flex items-center justify-center bg-black/50 transition-all duration-500`}>
+            <motion.div whileHover={{ scale: 1.05 }} className={`w-16 h-16 rounded-full border-2 ${ringColor} flex items-center justify-center bg-black/50`}>
               {isExecuting ? (
-                <div className="relative"><Zap className="w-5 h-5 text-purple-400" /><div className="absolute inset-0 w-5 h-5 bg-purple-400/20 rounded-full blur-md" /></div>
+                <div className="relative"><Zap className="w-5 h-5 text-purple-400" /><div className="absolute inset-0 bg-purple-400/20 rounded-full blur-md" /></div>
               ) : (
                 <Mic className="w-5 h-5 text-gray-500" />
               )}
@@ -183,11 +197,12 @@ export default function VoicePanel({ onTriggerWorkflow, onResearchQuery, isExecu
           )}
         </div>
 
-        {/* Phase status */}
         <AnimatePresence mode="wait">
-          <motion.div key={phase} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} className="text-center">
-            <p className={`text-[10px] font-mono font-bold tracking-widest uppercase ${currentPhase.color}`}>{currentPhase.label}</p>
-            <p className="text-[9px] text-gray-600 mt-0.5 font-mono max-w-[180px] truncate">{statusMsg}</p>
+          <motion.div key={phase + String(recording)} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} className="text-center">
+            <p className={`text-[10px] font-mono font-bold tracking-widest uppercase ${recording ? "text-cyan-400" : currentStatus.color}`}>
+              {recording ? "LISTENING — Speak Now" : currentStatus.label}
+            </p>
+            <p className="text-[9px] text-gray-600 mt-0.5 font-mono truncate max-w-[200px]">{status}</p>
           </motion.div>
         </AnimatePresence>
 
@@ -198,77 +213,73 @@ export default function VoicePanel({ onTriggerWorkflow, onResearchQuery, isExecu
           </motion.div>
         )}
 
-        {/* Mic button — always visible */}
         <motion.button
-          onClick={isRecording ? stopRecording : startRecording}
+          onClick={recording ? stopRecording : startRecording}
           disabled={isExecuting}
           whileHover={{ scale: 1.04 }}
           whileTap={{ scale: 0.96 }}
-          className={`px-4 py-1.5 rounded-full font-bold text-[10px] tracking-widest uppercase transition-all duration-300 flex items-center gap-2 font-mono ${
-            isRecording
+          className={`px-4 py-1.5 rounded-full font-bold text-[10px] tracking-widest uppercase flex items-center gap-2 font-mono transition-all ${
+            recording
               ? "bg-red-500/15 hover:bg-red-500/25 border border-red-500/40 text-red-300"
               : "bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 text-cyan-300 disabled:opacity-40"
           }`}
         >
-          {isRecording ? <><MicOff className="w-3.5 h-3.5" /> Stop Recording</> : <><Mic className="w-3.5 h-3.5" /> Record Voice</>}
+          {recording ? <><MicOff className="w-3.5 h-3.5" /> Stop</> : <><Mic className="w-3.5 h-3.5" /> Speak</>}
         </motion.button>
       </div>
 
-      {/* Research Now inline button */}
       <AnimatePresence>
-        {customPrompt.trim() && !isExecuting && (
+        {prompt.trim() && !isExecuting && !recording && (
           <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="px-1">
             <motion.button
-              onClick={() => onResearchQuery(customPrompt.trim())}
+              onClick={() => onResearchQuery(prompt.trim())}
               disabled={isResearching}
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
-              className="w-full bg-gradient-to-r from-cyan-500/10 to-emerald-500/10 hover:from-cyan-500/20 hover:to-emerald-500/20 border border-cyan-500/30 text-cyan-300 disabled:opacity-40 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all duration-300 flex items-center justify-center gap-2 font-mono mb-2"
+              className="w-full bg-gradient-to-r from-cyan-500/10 to-emerald-500/10 hover:from-cyan-500/20 hover:to-emerald-500/20 border border-cyan-500/30 text-cyan-300 disabled:opacity-40 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest flex items-center justify-center gap-2 font-mono mb-2"
             >
               <Search className="w-3 h-3" />
-              {isResearching ? "Researching Web..." : "Research Now — Real-Time Web"}
+              {isResearching ? "Searching..." : "Search Web Now"}
             </motion.button>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Omi Webhook Simulator */}
       <div className="border-t border-gray-800/70 pt-2.5 space-y-1.5">
         <h3 className="text-[9px] font-bold text-gray-500 uppercase tracking-[0.25em] flex items-center gap-1.5">
-          <Radio className="w-3 h-3 text-purple-400" /> Omi Webhook Simulator
+          <Radio className="w-3 h-3 text-purple-400" /> Command Input
         </h3>
 
         <div className="flex flex-col gap-0.5">
-          <label className="text-[9px] text-gray-600 uppercase tracking-widest">Preset Mission</label>
+          <label className="text-[9px] text-gray-600 uppercase tracking-widest">Preset</label>
           <select
-            value={selectedPreset}
-            onChange={(e) => { setSelectedPreset(e.target.value); setCustomPrompt(""); }}
-            className="bg-black/50 border border-gray-800 rounded-lg p-1.5 text-[11px] text-gray-300 outline-none focus:border-purple-500/50 transition-colors"
+            value={preset}
+            onChange={(e) => { setPreset(e.target.value); setPrompt(""); }}
+            className="bg-black/50 border border-gray-800 rounded-lg p-1.5 text-[11px] text-gray-300 outline-none focus:border-purple-500/50"
           >
-            {selectedPreset === "" && <option value="" disabled>Custom active...</option>}
-            {PRESET_PROMPTS.map((p, i) => (
+            {PRESETS.map((p, i) => (
               <option key={i} value={p}>{p.length > 48 ? p.slice(0, 45) + "..." : p}</option>
             ))}
           </select>
         </div>
 
         <div className="flex flex-col gap-0.5">
-          <label className="text-[9px] text-gray-600 uppercase tracking-widest">Custom Directive</label>
+          <label className="text-[9px] text-gray-600 uppercase tracking-widest">Custom Search / Command</label>
           <input
             type="text"
-            placeholder="e.g. Build a fintech app strategy..."
-            value={customPrompt}
-            onChange={(e) => { setCustomPrompt(e.target.value); setSelectedPreset(""); }}
+            placeholder="Speak or type here..."
+            value={prompt}
+            onChange={(e) => { setPrompt(e.target.value); setPreset(""); }}
             className="glass-input rounded-lg p-1.5 text-[11px] outline-none"
           />
         </div>
 
         <motion.button
-          onClick={handleOmiPush}
-          disabled={isExecuting || isRecording || phase === "preview"}
+          onClick={deploy}
+          disabled={isExecuting || recording}
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
-          className="w-full bg-gradient-to-r from-purple-500/10 to-cyan-500/10 hover:from-purple-500/20 hover:to-cyan-500/20 border border-purple-500/30 text-purple-300 disabled:opacity-40 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all duration-300 flex items-center justify-center gap-2 font-mono"
+          className="w-full bg-gradient-to-r from-purple-500/10 to-cyan-500/10 hover:from-purple-500/20 hover:to-cyan-500/20 border border-purple-500/30 text-purple-300 disabled:opacity-40 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest flex items-center justify-center gap-2 font-mono"
         >
           <Play className="w-3 h-3" />
           {isExecuting ? "Agents Running..." : "Deploy AI Workforce"}
