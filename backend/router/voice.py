@@ -106,7 +106,7 @@ async def transcribe_audio(
                 if file_ext not in ["wav", "mp3", "flac", "ogg", "webm", "m4a"]:
                     file_ext = "wav"
                 
-                models_to_try = ["google/gemini-2.5-flash", "google/gemini-2.0-flash"]
+                models_to_try = ["nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free", "google/gemini-2.0-flash-lite-001", "google/gemini-2.0-flash-001"]
                 transcript_text = None
                 for model_name in models_to_try:
                     try:
@@ -143,7 +143,7 @@ async def transcribe_audio(
                             method="POST"
                         )
                         
-                        with urllib.request.urlopen(req, timeout=30) as response:
+                        with urllib.request.urlopen(req, timeout=60) as response:
                             res_data = json.loads(response.read().decode("utf-8"))
                             if "choices" in res_data and len(res_data["choices"]) > 0:
                                 transcript_text = res_data["choices"][0]["message"]["content"].strip()

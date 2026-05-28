@@ -137,8 +137,8 @@ export default function VoicePanel({ onTriggerWorkflow, onResearchQuery, isExecu
         setPhase("transcribing");
         setStatusMsg("Processing speech...");
 
-        // Wait for Web Speech API to finalize
-        await new Promise((resolve) => setTimeout(resolve, 1000));
+        // Wait for Web Speech API to finalize (2s to ensure final results arrive)
+        await new Promise((resolve) => setTimeout(resolve, 2000));
 
         let transcript = recognitionTranscriptRef.current.trim();
         console.log("[Voice] Web Speech result:", transcript || "(empty)");
