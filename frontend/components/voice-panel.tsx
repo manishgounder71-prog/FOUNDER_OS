@@ -62,8 +62,9 @@ export default function VoicePanel({ onTriggerWorkflow, onResearchQuery, isExecu
       setStatus(`"${text.slice(0, 40)}${text.length > 40 ? "..." : ""}"`);
     };
 
-    recognition.onerror = () => {
-      setError("Speech not recognized. Check mic permissions.");
+    recognition.onerror = (event: any) => {
+      const code = event.error || "unknown";
+      setError(`Speech error: ${code}. ${code === "network" ? "Google speech servers unreachable." : code === "not-allowed" ? "Mic blocked in browser settings." : code === "no-speech" ? "No speech detected." : "Try Chrome or check mic."}`);
       setListening(false);
       setStatus("Ready");
     };
