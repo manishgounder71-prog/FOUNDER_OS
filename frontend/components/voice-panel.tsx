@@ -69,6 +69,7 @@ export default function VoicePanel({ onTriggerWorkflow, onResearchQuery, isExecu
 
         recognition.onresult = (event: any) => {
           const text = event.results[event.results.length - 1][0].transcript;
+          recognitionTranscriptRef.current = text;
           setPendingTranscript(text);
           setEditedTranscript(text);
         };
