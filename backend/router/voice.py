@@ -92,25 +92,31 @@ async def transcribe_audio(
                 print(f"[Voice] Gemini transcription fallback failed: {gemini_err}")
                 last_err = gemini_err
 
-        # 3. Try OpenRouter multimodal model transcription if OpenRouter API key is present
+        # 3. Try OpenRouter transcription via chat completions with free multimodal models
         if settings.OPENROUTER_API_KEY:
+            import base64
+            import urllib.request
+            import json
+            
+            with open(temp_file_path, "rb") as f:
+                audio_data = base64.b64encode(f.read()).decode("utf-8")
+            
+            file_ext = os.path.splitext(file.filename)[1].lower().replace(".", "")
+            if file_ext not in ["wav", "mp3", "flac", "ogg", "webm", "m4a"]:
+                file_ext = "wav"
+            
+            mime_type_map = {"wav": "audio/wav", "mp3": "audio/mpeg", "flac": "audio/flac", "ogg": "audio/ogg", "webm": "audio/webm", "m4a": "audio/mp4"}
+            mime_type = mime_type_map.get(file_ext, "audio/wav")
+            data_uri = f"data:{mime_type};base64,{audio_data}"
+            
+            transcript_text = None
+            
+            # 3a. Try dedicated audio transcriptions endpoint (paid models, requires $0.50 balance)
             try:
-                import base64
-                import urllib.request
-                import json
-                
-                with open(temp_file_path, "rb") as f:
-                    audio_data = base64.b64encode(f.read()).decode("utf-8")
-                
-                file_ext = os.path.splitext(file.filename)[1].lower().replace(".", "")
-                if file_ext not in ["wav", "mp3", "flac", "ogg", "webm", "m4a"]:
-                    file_ext = "wav"
-                
-                models_to_try = ["openai/whisper-large-v3-turbo", "openai/whisper-large-v3"]
-                transcript_text = None
-                for model_name in models_to_try:
+                paid_models = ["openai/whisper-large-v3-turbo", "openai/whisper-large-v3"]
+                for model_name in paid_models:
                     try:
-                        print(f"[Voice] Trying OpenRouter transcription model {model_name}...")
+                        print(f"[Voice] Trying OpenRouter paid transcription model {model_name}...")
                         payload = {
                             "model": model_name,
                             "input_audio": {
@@ -139,19 +145,72 @@ async def transcribe_audio(
                                 error_msg = res_data["error"].get("message", "Unknown OpenRouter error")
                                 raise Exception(error_msg)
                     except Exception as model_err:
-                        # Catch 402 / balance error specifically to log a helpful warning
                         if "402" in str(model_err) or "Payment Required" in str(model_err) or "balance" in str(model_err).lower():
-                            print(f"[Voice] OpenRouter transcription model {model_name} failed: OpenRouter requires a minimum $0.50 balance to use audio/transcription features.")
-                            last_err = Exception("OpenRouter requires at least $0.50 in account balance to use audio transcription.")
+                            print(f"[Voice] Paid transcription model {model_name} needs $0.50 balance. Skipping.")
                         else:
-                            print(f"[Voice] OpenRouter model {model_name} failed: {model_err}")
-                            last_err = model_err
+                            print(f"[Voice] Paid model {model_name} failed: {model_err}")
+                        last_err = model_err
                 
                 if transcript_text:
                     return {"transcript": transcript_text}
             except Exception as or_err:
-                print(f"[Voice] OpenRouter transcription failed: {or_err}")
+                print(f"[Voice] OpenRouter paid transcription failed: {or_err}")
                 last_err = or_err
+            
+            # 3b. Try free multimodal chat models that may accept audio input
+            free_models = [
+                "google/gemini-2.0-flash-exp:free",
+                "google/gemma-3-27b-it:free",
+                "mistralai/mistral-small-3.1-24b-instruct:free"
+            ]
+            try:
+                for model_name in free_models:
+                    try:
+                        print(f"[Voice] Trying free OpenRouter chat model {model_name} for audio transcription...")
+                        chat_payload = {
+                            "model": model_name,
+                            "messages": [
+                                {
+                                    "role": "user",
+                                    "content": [
+                                        {"type": "text", "text": "Transcribe this audio recording exactly. Return only the transcribed text, nothing else."},
+                                        {"type": "audio_url", "audio_url": {"url": data_uri}}
+                                    ]
+                                }
+                            ],
+                            "max_tokens": 500
+                        }
+                        
+                        req = urllib.request.Request(
+                            "https://openrouter.ai/api/v1/chat/completions",
+                            data=json.dumps(chat_payload).encode("utf-8"),
+                            headers={
+                                "Authorization": f"Bearer {settings.OPENROUTER_API_KEY}",
+                                "Content-Type": "application/json",
+                            },
+                            method="POST"
+                        )
+                        
+                        with urllib.request.urlopen(req, timeout=60) as response:
+                            chat_data = json.loads(response.read().decode("utf-8"))
+                            if "choices" in chat_data and len(chat_data["choices"]) > 0:
+                                text = chat_data["choices"][0]["message"]["content"].strip()
+                                if text:
+                                    transcript_text = text
+                                    break
+                            elif "error" in chat_data:
+                                error_msg = chat_data["error"].get("message", "")
+                                print(f"[Voice] Free model {model_name} error: {error_msg}")
+                    except Exception as free_err:
+                        print(f"[Voice] Free model {model_name} failed: {free_err}")
+                        last_err = free_err
+                
+                if transcript_text:
+                    print(f"[Voice] Free model transcription successful: '{transcript_text[:60]}...'")
+                    return {"transcript": transcript_text}
+            except Exception as or_free_err:
+                print(f"[Voice] OpenRouter free chat transcription failed: {or_free_err}")
+                last_err = or_free_err
 
         # If keys are present but all failed — fall back to mock transcription
         # so the frontend never gets a hard error and can still use the app
