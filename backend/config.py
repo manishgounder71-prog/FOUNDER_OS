@@ -8,11 +8,13 @@ _env_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file_
 class Settings(BaseSettings):
     OPENAI_API_KEY: Optional[str] = None
     GEMINI_API_KEY: Optional[str] = None
+    OMI_API_KEY: Optional[str] = None
     QDRANT_PATH: str = "./qdrant_db"
     QDRANT_URL: Optional[str] = None
     QDRANT_API_KEY: Optional[str] = None
     HOST: str = "127.0.0.1"
     PORT: int = 8000
+
     
     # Allow loading from a .env file
     model_config = SettingsConfigDict(

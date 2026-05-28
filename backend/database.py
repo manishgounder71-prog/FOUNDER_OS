@@ -1,6 +1,7 @@
 import uuid
 import random
 import hashlib
+import threading
 from typing import List, Dict, Any, Optional
 from qdrant_client import QdrantClient
 from qdrant_client.http import models
@@ -9,15 +10,17 @@ from backend.config import settings
 
 # Initialize Qdrant Client lazily to prevent locking issues under uvicorn reload
 _qdrant_client = None
+_qdrant_lock = threading.RLock()
 
 def get_qdrant_client() -> QdrantClient:
     global _qdrant_client
-    if _qdrant_client is None:
-        if settings.QDRANT_URL and settings.QDRANT_API_KEY:
-            _qdrant_client = QdrantClient(url=settings.QDRANT_URL, api_key=settings.QDRANT_API_KEY)
-        else:
-            _qdrant_client = QdrantClient(path=settings.QDRANT_PATH)
-    return _qdrant_client
+    with _qdrant_lock:
+        if _qdrant_client is None:
+            if settings.QDRANT_URL and settings.QDRANT_API_KEY:
+                _qdrant_client = QdrantClient(url=settings.QDRANT_URL, api_key=settings.QDRANT_API_KEY)
+            else:
+                _qdrant_client = QdrantClient(path=settings.QDRANT_PATH)
+        return _qdrant_client
 
 # Define collections
 COLLECTIONS = [
@@ -31,58 +34,59 @@ COLLECTIONS = [
 
 def init_db():
     """Initialize Qdrant collections if they do not exist, and seed demo records if empty."""
-    try:
-        client = get_qdrant_client()
-        existing_collections = [c.name for c in client.get_collections().collections]
-        for col in COLLECTIONS:
-            if col not in existing_collections:
-                client.create_collection(
-                    collection_name=col,
-                    vectors_config=models.VectorParams(
-                        size=1536,  # Standard OpenAI embedding dimension
-                        distance=models.Distance.COSINE
-                    )
-                )
-                print(f"Created Qdrant collection: {col}")
-            else:
-                print(f"Qdrant collection '{col}' already exists.")
-                
-        # Seed initial startup ideas and founder profile if empty
+    with _qdrant_lock:
         try:
-            info = client.get_collection(collection_name="startup_ideas")
-            if info.points_count == 0:
-                print("[Seeder] Seeding initial Founder Profile and historical memory...")
-                from datetime import datetime
+            client = get_qdrant_client()
+            existing_collections = [c.name for c in client.get_collections().collections]
+            for col in COLLECTIONS:
+                if col not in existing_collections:
+                    client.create_collection(
+                        collection_name=col,
+                        vectors_config=models.VectorParams(
+                            size=1536,  # Standard OpenAI embedding dimension
+                            distance=models.Distance.COSINE
+                        )
+                    )
+                    print(f"Created Qdrant collection: {col}")
+                else:
+                    print(f"Qdrant collection '{col}' already exists.")
+                    
+            # Seed initial startup ideas and founder profile if empty
+            try:
+                info = client.get_collection(collection_name="startup_ideas")
+                if info.points_count == 0:
+                    print("[Seeder] Seeding initial Founder Profile and historical memory...")
+                    from datetime import datetime
+                    
+                    # Seed Founder Profile
+                    save_memory(
+                        collection="startup_ideas",
+                        text="Founder Persona: Jane Doe. Core Focus: AI orchestration workflows, local-first markdown note-taking apps, Stripe subscription dynamic billing. Strategic Tendencies: Bootstrapping, low-CAC organic distribution, community-led growth (Reddit, Discord, HN). Preferred technologies: SQLite, Tailwind, Qdrant Vector DB, Gemini 1.5 Flash.",
+                        metadata={
+                            "timestamp": datetime.utcnow().isoformat() + "Z",
+                            "type": "Founder Profile",
+                            "startup_name": "General",
+                            "author": "System"
+                        }
+                    )
+                    
+                    # Seed historical study app concept
+                    save_memory(
+                        collection="startup_ideas",
+                        text="Study Tool Concept: Active recall vocal flashcards. Integrates spacing algorithms with semantically scored voice grading to replace passive reading.",
+                        metadata={
+                            "timestamp": datetime.utcnow().isoformat() + "Z",
+                            "type": "Historical Idea",
+                            "startup_name": "AI Study Copilot",
+                            "author": "Jane Doe"
+                        }
+                    )
+                    print("[Seeder] Demo seeding completed successfully.")
+            except Exception as err:
+                print(f"[Seeder] Failed to check or seed database: {err}")
                 
-                # Seed Founder Profile
-                save_memory(
-                    collection="startup_ideas",
-                    text="Founder Persona: Jane Doe. Core Focus: AI orchestration workflows, local-first markdown note-taking apps, Stripe subscription dynamic billing. Strategic Tendencies: Bootstrapping, low-CAC organic distribution, community-led growth (Reddit, Discord, HN). Preferred technologies: SQLite, Tailwind, Qdrant Vector DB, Gemini 1.5 Flash.",
-                    metadata={
-                        "timestamp": datetime.utcnow().isoformat() + "Z",
-                        "type": "Founder Profile",
-                        "startup_name": "General",
-                        "author": "System"
-                    }
-                )
-                
-                # Seed historical study app concept
-                save_memory(
-                    collection="startup_ideas",
-                    text="Study Tool Concept: Active recall vocal flashcards. Integrates spacing algorithms with semantically scored voice grading to replace passive reading.",
-                    metadata={
-                        "timestamp": datetime.utcnow().isoformat() + "Z",
-                        "type": "Historical Idea",
-                        "startup_name": "AI Study Copilot",
-                        "author": "Jane Doe"
-                    }
-                )
-                print("[Seeder] Demo seeding completed successfully.")
-        except Exception as err:
-            print(f"[Seeder] Failed to check or seed database: {err}")
-            
-    except Exception as e:
-        print(f"Error initializing Qdrant database: {e}")
+        except Exception as e:
+            print(f"Error initializing Qdrant database: {e}")
 
 def get_mock_embedding(text: str) -> List[float]:
     """Generates a deterministic unit vector of 1536 dimensions based on the text hash.
@@ -136,16 +140,17 @@ def save_memory(collection: str, text: str, metadata: Optional[Dict[str, Any]] =
     point_id = str(uuid.uuid4())
     vector = get_embedding(text)
     
-    get_qdrant_client().upsert(
-        collection_name=collection,
-        points=[
-            models.PointStruct(
-                id=point_id,
-                vector=vector,
-                payload=payload
-            )
-        ]
-    )
+    with _qdrant_lock:
+        get_qdrant_client().upsert(
+            collection_name=collection,
+            points=[
+                models.PointStruct(
+                    id=point_id,
+                    vector=vector,
+                    payload=payload
+                )
+            ]
+        )
     return point_id
 
 # Minimum cosine similarity score to consider a result relevant.
@@ -161,12 +166,13 @@ def search_memory(collection: str, query: str, limit: int = 5) -> List[Dict[str,
         raise ValueError(f"Invalid collection name: {collection}")
         
     vector = get_embedding(query)
-    search_results = get_qdrant_client().query_points(
-        collection_name=collection,
-        query=vector,
-        limit=limit,
-        score_threshold=SCORE_THRESHOLD
-    )
+    with _qdrant_lock:
+        search_results = get_qdrant_client().query_points(
+            collection_name=collection,
+            query=vector,
+            limit=limit,
+            score_threshold=SCORE_THRESHOLD
+        )
     
     results = []
     for hit in search_results.points:
@@ -209,12 +215,13 @@ def get_all_memories(collection: str, limit: int = 100) -> List[Dict[str, Any]]:
     if collection not in COLLECTIONS:
         raise ValueError(f"Invalid collection name: {collection}")
         
-    records, _ = get_qdrant_client().scroll(
-        collection_name=collection,
-        limit=limit,
-        with_payload=True,
-        with_vectors=False
-    )
+    with _qdrant_lock:
+        records, _ = get_qdrant_client().scroll(
+            collection_name=collection,
+            limit=limit,
+            with_payload=True,
+            with_vectors=False
+        )
     
     results = []
     for record in records:
