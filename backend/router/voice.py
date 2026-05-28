@@ -73,8 +73,25 @@ async def transcribe_audio(
                     print(f"[Voice] ffmpeg conversion failed, trying original: {conv_err}")
                     audio_path_for_gemini = temp_file_path
                 
+                import time
                 print(f"[Voice] Uploading {audio_path_for_gemini} to Gemini...")
                 audio_file = genai.upload_file(path=audio_path_for_gemini)
+                print(f"[Voice] File uploaded: {audio_file.name}, state: {audio_file.state.name}")
+                
+                # Wait for Gemini to finish processing the file (async upload)
+                wait_start = time.time()
+                while audio_file.state.name == "PROCESSING":
+                    if time.time() - wait_start > 30:
+                        raise Exception("Gemini file processing timed out after 30s")
+                    print("[Voice] Waiting for Gemini file processing...")
+                    time.sleep(1)
+                    audio_file = genai.get_file(audio_file.name)
+                
+                if audio_file.state.name != "ACTIVE":
+                    print(f"[Voice] File processing failed: state={audio_file.state.name}")
+                    raise Exception(f"Gemini file processing failed: {audio_file.state.name}")
+                
+                print(f"[Voice] File ready, size: {audio_file.size_bytes} bytes")
                 
                 # Loop through available models to ensure compatibility
                 models_to_try = ["gemini-2.0-flash", "gemini-1.5-flash"]
@@ -87,7 +104,9 @@ async def transcribe_audio(
                             audio_file,
                             "Please transcribe this audio recording exactly. Return only the transcription text, nothing else."
                         ])
-                        break
+                        print(f"[Voice] Model {m_name} responded. text='{response.text[:100] if response.text else '(empty)'}'")
+                        if response.text and response.text.strip():
+                            break
                     except Exception as model_err:
                         print(f"[Voice] Gemini model {m_name} failed: {model_err}")
                         last_err = model_err
