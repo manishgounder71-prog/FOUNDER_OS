@@ -2,7 +2,7 @@
 
 import React, { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Mic, MicOff, Radio, Play, AlertCircle, Zap, Search, CheckCircle, Edit3 } from "lucide-react";
+import { Mic, MicOff, Radio, Play, AlertCircle, Zap, Search } from "lucide-react";
 import { simulateOmiWebhook } from "@/lib/api";
 
 interface VoicePanelProps {
@@ -21,25 +21,17 @@ const PRESET_PROMPTS = [
 
 const STATUS_PHASES = [
   { key: "standby",      label: "STANDBY — Awaiting Command",         color: "text-gray-500" },
-  { key: "listening",    label: "LISTENING — Voice Input Active",       color: "text-cyan-400" },
-  { key: "transcribing", label: "TRANSCRIBING — Processing Speech...", color: "text-amber-400" },
-  { key: "preview",      label: "PREVIEW — Confirm Your Command",       color: "text-emerald-400" },
   { key: "deploying",    label: "DEPLOYING — Agent Workforce Online",   color: "text-purple-400" },
   { key: "running",      label: "EXECUTING — Agents Running...",        color: "text-green-400" },
 ];
 
 export default function VoicePanel({ onTriggerWorkflow, onResearchQuery, isExecuting, isResearching }: VoicePanelProps) {
   const [isRecording, setIsRecording] = useState(false);
-  const [audioLevel, setAudioLevel] = useState(0);
   const [phase, setPhase] = useState<string>("standby");
   const [statusMsg, setStatusMsg] = useState("Ready to receive commands...");
   const [selectedPreset, setSelectedPreset] = useState(PRESET_PROMPTS[0]);
   const [customPrompt, setCustomPrompt] = useState("");
   const [error, setError] = useState<string | null>(null);
-
-  // Transcript preview state — shown to user before deploying
-  const [pendingTranscript, setPendingTranscript] = useState<string>("");
-  const [editedTranscript, setEditedTranscript] = useState<string>("");
 
   const recognitionRef = useRef<any>(null);
   const recognitionTranscriptRef = useRef<string>("");
@@ -55,8 +47,6 @@ export default function VoicePanel({ onTriggerWorkflow, onResearchQuery, isExecu
 
   const startRecording = () => {
     setError(null);
-    setPendingTranscript("");
-    setEditedTranscript("");
 
     // Try Web Speech API (Chrome/Edge) for live transcription — no backend needed
     const SpeechRecognitionClass = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
@@ -73,14 +63,13 @@ export default function VoicePanel({ onTriggerWorkflow, onResearchQuery, isExecu
             fullText += event.results[i][0].transcript;
           }
           recognitionTranscriptRef.current = fullText;
-          setEditedTranscript(fullText);
+          setCustomPrompt(fullText);
         };
 
         recognition.onerror = () => {
           recognitionRef.current = null;
-          setEditedTranscript(customPrompt || "");
-          setPhase("preview");
-          setStatusMsg("Type your command below.");
+          setIsRecording(false);
+          setStatusMsg("Ready to receive commands...");
         };
 
         recognition.onend = () => {
@@ -91,18 +80,12 @@ export default function VoicePanel({ onTriggerWorkflow, onResearchQuery, isExecu
         recognitionTranscriptRef.current = "";
         recognition.start();
         setIsRecording(true);
-        setPhase("listening");
-        setStatusMsg("Listening...");
+        setStatusMsg("Listening... speak now.");
         return;
       } catch {
-        // Web Speech init failed — fall through to text input
+        // Web Speech init failed — fall through
       }
     }
-
-    // No speech recognition available — show textarea for typing
-    setEditedTranscript(customPrompt || "");
-    setPhase("preview");
-    setStatusMsg("Type your command below.");
   };
 
   const stopRecording = () => {
@@ -111,52 +94,13 @@ export default function VoicePanel({ onTriggerWorkflow, onResearchQuery, isExecu
       recognitionRef.current = null;
     }
     setIsRecording(false);
-    const text = recognitionTranscriptRef.current;
-    if (text) {
-      setPendingTranscript(text);
-      setEditedTranscript(text);
-      setPhase("preview");
-      setStatusMsg("Review your command before deploying.");
+    const finalText = recognitionTranscriptRef.current;
+    if (finalText) {
+      setCustomPrompt(finalText);
+      setStatusMsg(`Ready: "${finalText.slice(0, 60)}${finalText.length > 60 ? "..." : ""}"`);
     } else {
-      setEditedTranscript(customPrompt || "");
-      setPhase("preview");
-      setStatusMsg("Type your command below.");
+      setStatusMsg("No speech detected. Type your command below.");
     }
-  };
-
-  const confirmAndDeploy = async () => {
-    const text = editedTranscript.trim();
-    if (!text) { setError("Command cannot be empty."); return; }
-    if (recognitionRef.current) {
-      try { recognitionRef.current.abort(); } catch (e) {}
-      recognitionRef.current = null;
-    }
-    setError(null);
-    setPendingTranscript("");
-    setEditedTranscript("");
-    setPhase("deploying");
-    setStatusMsg(`Dispatching: "${text}"`);
-    try {
-      const workflowId = await simulateOmiWebhook(text);
-      setPhase("running");
-      setStatusMsg("Workforce online. Streaming...");
-      onTriggerWorkflow(workflowId, text);
-    } catch {
-      setError("Workflow dispatch failed. Please try again.");
-      setPhase("standby");
-      setStatusMsg("Ready to receive commands...");
-    }
-  };
-
-  const cancelPreview = () => {
-    setPendingTranscript("");
-    setEditedTranscript("");
-    if (recognitionRef.current) {
-      try { recognitionRef.current.abort(); } catch (e) {}
-      recognitionRef.current = null;
-    }
-    setPhase("standby");
-    setStatusMsg("Ready to receive commands...");
   };
 
   const handleOmiPush = async () => {
@@ -210,9 +154,9 @@ export default function VoicePanel({ onTriggerWorkflow, onResearchQuery, isExecu
         <div className="relative flex items-center justify-center">
           {isRecording && (
             <>
-              <div className="absolute w-24 h-24 rounded-full border border-cyan-400/30 neural-ring transition-all duration-75" style={{ transform: `scale(${1 + (audioLevel / 100) * 0.25})` }} />
-              <div className="absolute w-24 h-24 rounded-full border border-cyan-400/20 neural-ring transition-all duration-75" style={{ transform: `scale(${1.15 + (audioLevel / 100) * 0.35})`, animationDelay: "0.6s" }} />
-              <div className="absolute w-24 h-24 rounded-full border border-cyan-400/10 neural-ring transition-all duration-75" style={{ transform: `scale(${1.3 + (audioLevel / 100) * 0.45})`, animationDelay: "1.2s" }} />
+              <div className="absolute w-24 h-24 rounded-full border border-cyan-400/30 neural-ring transition-all duration-75" style={{ transform: `scale(${1 + 0.05})` }} />
+              <div className="absolute w-24 h-24 rounded-full border border-cyan-400/20 neural-ring transition-all duration-75" style={{ transform: `scale(${1.15 + 0.1})`, animationDelay: "0.6s" }} />
+              <div className="absolute w-24 h-24 rounded-full border border-cyan-400/10 neural-ring transition-all duration-75" style={{ transform: `scale(${1.3 + 0.15})`, animationDelay: "1.2s" }} />
             </>
           )}
 
@@ -221,9 +165,9 @@ export default function VoicePanel({ onTriggerWorkflow, onResearchQuery, isExecu
               <div className="flex items-end gap-1 h-8 px-2">
                 {[...Array(8)].map((_, i) => {
                   const multiplier = 0.25 + Math.sin((i / 7) * Math.PI) * 0.75;
-                  const dynamicHeight = Math.max(4, Math.min(32, (audioLevel / 100) * 32 * multiplier + Math.random() * 4));
+                  const barHeight = Math.max(4, Math.min(32, 14 * multiplier + Math.random() * 4));
                   return (
-                    <span key={i} className="wave-bar rounded-full transition-all duration-75" style={{ width: "3px", height: `${dynamicHeight}px`, background: `rgba(6, 182, 212, ${0.4 + i * 0.08})` }} />
+                    <span key={i} className="wave-bar rounded-full transition-all duration-75" style={{ width: "3px", height: `${barHeight}px`, background: `rgba(6, 182, 212, ${0.4 + i * 0.08})` }} />
                   );
                 })}
               </div>
@@ -232,8 +176,6 @@ export default function VoicePanel({ onTriggerWorkflow, onResearchQuery, isExecu
             <motion.div whileHover={{ scale: 1.05 }} className={`w-16 h-16 rounded-full border-2 ${ringColor} flex items-center justify-center bg-black/50 transition-all duration-500`}>
               {isExecuting ? (
                 <div className="relative"><Zap className="w-5 h-5 text-purple-400" /><div className="absolute inset-0 w-5 h-5 bg-purple-400/20 rounded-full blur-md" /></div>
-              ) : phase === "preview" ? (
-                <CheckCircle className="w-5 h-5 text-emerald-400" />
               ) : (
                 <Mic className="w-5 h-5 text-gray-500" />
               )}
@@ -256,99 +198,20 @@ export default function VoicePanel({ onTriggerWorkflow, onResearchQuery, isExecu
           </motion.div>
         )}
 
-        {/* ✅ Transcript Preview — confirm before deploying / live transcribing */}
-        <AnimatePresence>
-          {["preview", "listening", "transcribing"].includes(phase) && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: "auto" }}
-              exit={{ opacity: 0, height: 0 }}
-              className="w-full px-1 space-y-1.5"
-            >
-              <p className={`text-[9px] font-mono uppercase tracking-widest flex items-center gap-1.5 ${
-                phase === "listening" ? "text-cyan-400" : phase === "transcribing" ? "text-amber-400" : "text-emerald-400"
-              }`}>
-                {phase === "listening" ? (
-                  <>
-                    <span className="w-1.5 h-1.5 bg-cyan-400 rounded-full animate-ping mr-0.5" />
-                    Listening & Transcribing Live...
-                  </>
-                ) : phase === "transcribing" ? (
-                  <>
-                    <span className="w-1.5 h-1.5 bg-amber-400 rounded-full animate-pulse mr-0.5" />
-                    Finalizing transcription...
-                  </>
-                ) : (
-                  <>
-                    <Edit3 className="w-3 h-3" />
-                    {pendingTranscript ? "Transcribed — edit if needed" : "Type your command below"}
-                  </>
-                )}
-              </p>
-              <textarea
-                value={editedTranscript}
-                onChange={(e) => setEditedTranscript(e.target.value)}
-                readOnly={phase === "listening" || phase === "transcribing"}
-                rows={2}
-                className={`w-full glass-input rounded-lg p-1.5 text-[11px] outline-none resize-none leading-relaxed transition-all duration-300 ${
-                  phase === "listening" ? "border-cyan-500/50 bg-cyan-950/5" : ""
-                }`}
-                placeholder={phase === "listening" ? "Speaking... speak now..." : "Type your command here, e.g. Create a launch strategy for an AI fitness app..."}
-              />
-              <div className="flex gap-1.5">
-                <motion.button
-                  onClick={confirmAndDeploy}
-                  disabled={phase === "listening" || phase === "transcribing" || !editedTranscript.trim()}
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.97 }}
-                  className="flex-1 bg-gradient-to-r from-emerald-500/15 to-cyan-500/15 hover:from-emerald-500/25 hover:to-cyan-500/25 border border-emerald-500/40 text-emerald-300 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-1.5 font-mono disabled:opacity-40 disabled:pointer-events-none"
-                >
-                  <Play className="w-3 h-3" /> Deploy
-                </motion.button>
-                <motion.button
-                  onClick={() => {
-                    const text = editedTranscript.trim();
-                    if (text) {
-                      onResearchQuery(text);
-                    }
-                  }}
-                  disabled={phase === "listening" || phase === "transcribing" || isResearching || !editedTranscript.trim()}
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.97 }}
-                  className="flex-1 bg-gradient-to-r from-cyan-500/15 to-emerald-500/15 hover:from-cyan-500/25 hover:to-cyan-500/25 border border-cyan-500/40 text-cyan-300 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-1.5 font-mono disabled:opacity-40 disabled:pointer-events-none"
-                >
-                  <Search className="w-3 h-3" /> {isResearching ? "Searching..." : "Search Live"}
-                </motion.button>
-                <motion.button
-                  onClick={cancelPreview}
-                  disabled={phase === "listening" || phase === "transcribing"}
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.97 }}
-                  className="px-3 bg-gray-800/50 hover:bg-gray-700/50 border border-gray-700 text-gray-400 py-1.5 rounded-lg text-[10px] font-mono uppercase tracking-widest transition-all disabled:opacity-40 disabled:pointer-events-none"
-                >
-                  Cancel
-                </motion.button>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Mic button — hidden during preview */}
-        {phase !== "preview" && (
-          <motion.button
-            onClick={isRecording ? stopRecording : startRecording}
-            disabled={isExecuting}
-            whileHover={{ scale: 1.04 }}
-            whileTap={{ scale: 0.96 }}
-            className={`px-4 py-1.5 rounded-full font-bold text-[10px] tracking-widest uppercase transition-all duration-300 flex items-center gap-2 font-mono ${
-              isRecording
-                ? "bg-red-500/15 hover:bg-red-500/25 border border-red-500/40 text-red-300"
-                : "bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 text-cyan-300 disabled:opacity-40"
-            }`}
-          >
-            {isRecording ? <><MicOff className="w-3.5 h-3.5" /> Stop Recording</> : <><Mic className="w-3.5 h-3.5" /> Record Voice</>}
-          </motion.button>
-        )}
+        {/* Mic button — always visible */}
+        <motion.button
+          onClick={isRecording ? stopRecording : startRecording}
+          disabled={isExecuting}
+          whileHover={{ scale: 1.04 }}
+          whileTap={{ scale: 0.96 }}
+          className={`px-4 py-1.5 rounded-full font-bold text-[10px] tracking-widest uppercase transition-all duration-300 flex items-center gap-2 font-mono ${
+            isRecording
+              ? "bg-red-500/15 hover:bg-red-500/25 border border-red-500/40 text-red-300"
+              : "bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 text-cyan-300 disabled:opacity-40"
+          }`}
+        >
+          {isRecording ? <><MicOff className="w-3.5 h-3.5" /> Stop Recording</> : <><Mic className="w-3.5 h-3.5" /> Record Voice</>}
+        </motion.button>
       </div>
 
       {/* Research Now inline button */}
