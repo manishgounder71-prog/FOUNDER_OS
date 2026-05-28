@@ -124,6 +124,11 @@ export default function VoicePanel({ onTriggerWorkflow, onResearchQuery, isExecu
 
         recognition.onerror = (err: any) => {
           console.warn("[WebSpeech] Local speech error:", err.error);
+          if (err.error === "not-allowed") {
+            setError("Microphone permission blocked by browser.");
+          } else if (err.error === "network") {
+            console.warn("[WebSpeech] Network error during local speech recognition.");
+          }
         };
 
         recognitionRef.current = recognition;
@@ -158,7 +163,12 @@ export default function VoicePanel({ onTriggerWorkflow, onResearchQuery, isExecu
             setEditedTranscript("");
             setPhase("preview");
             setStatusMsg("Voice not detected. Type your command below.");
-            setError("Mic transcription unavailable. Type your command and click Deploy.");
+            
+            // Show a friendly notice if it's the OpenRouter balance/credit issue, else general message
+            const friendlyErr = err.message && (err.message.includes("50") || err.message.includes("balance") || err.message.includes("402"))
+              ? "Account balance too low on OpenRouter (requires at least $0.50 for audio). Please type your command below."
+              : "Voice not detected. Type your command and click Deploy.";
+            setError(friendlyErr);
             stream.getTracks().forEach(t => t.stop());
             return;
           }
@@ -170,7 +180,7 @@ export default function VoicePanel({ onTriggerWorkflow, onResearchQuery, isExecu
           setEditedTranscript("");
           setPhase("preview");
           setStatusMsg("Voice not detected. Type your command below.");
-          setError("Could not detect speech. Type your command and click Deploy.");
+          setError("Voice not detected. Type your command manually and click Deploy.");
           stream.getTracks().forEach(t => t.stop());
           return;
         }

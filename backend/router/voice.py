@@ -106,35 +106,21 @@ async def transcribe_audio(
                 if file_ext not in ["wav", "mp3", "flac", "ogg", "webm", "m4a"]:
                     file_ext = "wav"
                 
-                models_to_try = ["nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free", "google/gemini-2.0-flash-lite-001", "google/gemini-2.0-flash-001"]
+                models_to_try = ["openai/whisper-large-v3-turbo", "openai/whisper-large-v3"]
                 transcript_text = None
                 for model_name in models_to_try:
                     try:
-                        print(f"[Voice] Trying OpenRouter model {model_name}...")
+                        print(f"[Voice] Trying OpenRouter transcription model {model_name}...")
                         payload = {
                             "model": model_name,
-                            "messages": [
-                                {
-                                    "role": "user",
-                                    "content": [
-                                        {
-                                            "type": "text",
-                                            "text": "Transcribe this audio recording exactly. Do not add any introduction, explanations, or commentary. Output only the transcription."
-                                        },
-                                        {
-                                            "type": "input_audio",
-                                            "input_audio": {
-                                                "data": audio_data,
-                                                "format": file_ext
-                                            }
-                                        }
-                                    ]
-                                }
-                            ]
+                            "input_audio": {
+                                "data": audio_data,
+                                "format": file_ext
+                            }
                         }
                         
                         req = urllib.request.Request(
-                            "https://openrouter.ai/api/v1/chat/completions",
+                            "https://openrouter.ai/api/v1/audio/transcriptions",
                             data=json.dumps(payload).encode("utf-8"),
                             headers={
                                 "Authorization": f"Bearer {settings.OPENROUTER_API_KEY}",
@@ -145,15 +131,21 @@ async def transcribe_audio(
                         
                         with urllib.request.urlopen(req, timeout=60) as response:
                             res_data = json.loads(response.read().decode("utf-8"))
-                            if "choices" in res_data and len(res_data["choices"]) > 0:
-                                transcript_text = res_data["choices"][0]["message"]["content"].strip()
+                            if "text" in res_data:
+                                transcript_text = res_data["text"].strip()
                                 if transcript_text:
                                     break
                             elif "error" in res_data:
-                                raise Exception(res_data["error"].get("message", "Unknown OpenRouter error"))
+                                error_msg = res_data["error"].get("message", "Unknown OpenRouter error")
+                                raise Exception(error_msg)
                     except Exception as model_err:
-                        print(f"[Voice] OpenRouter model {model_name} failed: {model_err}")
-                        last_err = model_err
+                        # Catch 402 / balance error specifically to log a helpful warning
+                        if "402" in str(model_err) or "Payment Required" in str(model_err) or "balance" in str(model_err).lower():
+                            print(f"[Voice] OpenRouter transcription model {model_name} failed: OpenRouter requires a minimum $0.50 balance to use audio/transcription features.")
+                            last_err = Exception("OpenRouter requires at least $0.50 in account balance to use audio transcription.")
+                        else:
+                            print(f"[Voice] OpenRouter model {model_name} failed: {model_err}")
+                            last_err = model_err
                 
                 if transcript_text:
                     return {"transcript": transcript_text}
