@@ -405,7 +405,7 @@ export default function Home() {
 
           <div className="flex items-center gap-1.5">
             <span className="w-2 h-2 bg-green-500 rounded-full animate-ping" />
-            <span>Omi Wearable Sync: ACTIVE</span>
+            <span>Omi Webhook: READY</span>
           </div>
           <div className="flex items-center gap-1.5">
             <Database className="w-3.5 h-3.5 text-purple-400" />

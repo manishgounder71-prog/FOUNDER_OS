@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "FounderOS — The AI Startup Operating System",
-  description: "Your AI startup team controlled entirely by voice. Powered by Omi Wearable transcription, Qdrant persistent semantic memory, and Lyzr multi-agent orchestration.",
+  description: "Your AI startup team controlled entirely by voice. Powered by browser speech, Qdrant persistent semantic memory, and Lyzr multi-agent orchestration.",
 };
 
 export default function RootLayout({
