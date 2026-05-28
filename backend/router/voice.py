@@ -14,6 +14,7 @@ class OmiWebhookPayload(BaseModel):
     transcript: str
     session_id: Optional[str] = None
     speaker: Optional[str] = "founder"
+    simulated: Optional[bool] = False
 
 @router.post("/transcribe")
 async def transcribe_audio(
@@ -243,8 +244,8 @@ async def omi_webhook(
     """Omi wearable webhook endpoint. Receives transcriptions pushed by the Omi app,
     initiates a background agent workflow, and saves the conversation.
     """
-    # Secure the endpoint if OMI_API_KEY is configured in backend environment
-    if settings.OMI_API_KEY:
+    # Skip auth for simulated requests from the frontend's Omi Webhook Simulator
+    if not payload.simulated and settings.OMI_API_KEY:
         # If it is a local request originating from localhost/127.0.0.1, bypass key verification
         referer = request.headers.get("referer", "")
         origin = request.headers.get("origin", "")

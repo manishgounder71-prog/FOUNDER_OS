@@ -56,7 +56,8 @@ export async function simulateOmiWebhook(transcript: string): Promise<string> {
     body: JSON.stringify({
       transcript,
       session_id: `omi-session-${Math.random().toString(36).substring(7)}`,
-      speaker: "founder"
+      speaker: "founder",
+      simulated: true
     }),
   });
   if (!res.ok) {
