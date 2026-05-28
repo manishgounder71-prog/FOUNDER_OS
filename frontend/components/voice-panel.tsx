@@ -63,19 +63,21 @@ export default function VoicePanel({ onTriggerWorkflow, onResearchQuery, isExecu
     if (SpeechRecognitionClass) {
       try {
         const recognition = new SpeechRecognitionClass();
-        recognition.continuous = false;
+        recognition.continuous = true;
         recognition.interimResults = true;
         recognition.lang = "en-US";
 
         recognition.onresult = (event: any) => {
-          const text = event.results[event.results.length - 1][0].transcript;
-          recognitionTranscriptRef.current = text;
-          setPendingTranscript(text);
-          setEditedTranscript(text);
+          let fullText = "";
+          for (let i = 0; i < event.results.length; i++) {
+            fullText += event.results[i][0].transcript;
+          }
+          recognitionTranscriptRef.current = fullText;
+          setEditedTranscript(fullText);
         };
 
         recognition.onerror = () => {
-          // Web Speech failed — show textarea for typing
+          recognitionRef.current = null;
           setEditedTranscript(customPrompt || "");
           setPhase("preview");
           setStatusMsg("Type your command below.");
@@ -83,18 +85,6 @@ export default function VoicePanel({ onTriggerWorkflow, onResearchQuery, isExecu
 
         recognition.onend = () => {
           setIsRecording(false);
-          const finalText = recognitionTranscriptRef.current;
-          if (finalText) {
-            setPendingTranscript(finalText);
-            setEditedTranscript(finalText);
-            setPhase("preview");
-            setStatusMsg("Review your command before deploying.");
-          } else {
-            // No speech detected — show textarea for typing
-            setEditedTranscript(customPrompt || "");
-            setPhase("preview");
-            setStatusMsg("Type your command below.");
-          }
         };
 
         recognitionRef.current = recognition;
@@ -116,10 +106,21 @@ export default function VoicePanel({ onTriggerWorkflow, onResearchQuery, isExecu
   };
 
   const stopRecording = () => {
-    setIsRecording(false);
     if (recognitionRef.current) {
       try { recognitionRef.current.stop(); } catch (e) {}
       recognitionRef.current = null;
+    }
+    setIsRecording(false);
+    const text = recognitionTranscriptRef.current;
+    if (text) {
+      setPendingTranscript(text);
+      setEditedTranscript(text);
+      setPhase("preview");
+      setStatusMsg("Review your command before deploying.");
+    } else {
+      setEditedTranscript(customPrompt || "");
+      setPhase("preview");
+      setStatusMsg("Type your command below.");
     }
   };
 
