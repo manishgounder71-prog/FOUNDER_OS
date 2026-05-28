@@ -121,24 +121,19 @@ export async function transcribeAudio(audioBlob: Blob, mockPrompt?: string): Pro
     formData.append("mock_prompt", mockPrompt);
   }
 
+  console.log(`[API] Sending ${audioBlob.size} bytes to /api/voice/transcribe (${audioBlob.type})`);
   const res = await fetch(`${BACKEND_URL}/api/voice/transcribe`, {
     method: "POST",
     body: formData,
   });
+  console.log(`[API] Response status: ${res.status}`);
   if (!res.ok) {
-    try {
-      const errData = await res.json();
-      if (errData && errData.detail) {
-        throw new Error(errData.detail);
-      }
-    } catch (e: any) {
-      if (e.message && !e.message.includes("Unexpected token")) {
-        throw e;
-      }
-    }
-    throw new Error(`Transcription API failed with status ${res.status}: ${res.statusText}`);
+    let body = "";
+    try { body = await res.text(); } catch (e) {}
+    throw new Error(`HTTP ${res.status}: ${body || res.statusText}`);
   }
   const data = await res.json();
+  console.log(`[API] Transcript response:`, data);
   return data.transcript;
 }
 

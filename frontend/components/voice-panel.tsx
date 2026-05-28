@@ -100,11 +100,12 @@ export default function VoicePanel({ onTriggerWorkflow, onResearchQuery, isExecu
             setPrompt(text);
             setStatus(`Ready: "${text.slice(0, 60)}${text.length > 60 ? "..." : ""}"`);
           } else {
-            setStatus("No speech detected. Type your command.");
+            setError("Gemini returned empty — backend could not transcribe audio.");
+            setStatus("Transcription failed.");
           }
-        } catch {
-          setError("Transcription failed. Gemini may not be available. Type your command.");
-          setStatus("Ready to receive commands...");
+        } catch (err: any) {
+          setError(`API error: ${err.message || "Unknown error"}`);
+          setStatus("Transcription failed.");
         }
         setRecording(false);
       };
