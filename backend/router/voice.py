@@ -92,8 +92,77 @@ async def transcribe_audio(
                 print(f"[Voice] Gemini transcription fallback failed: {gemini_err}")
                 last_err = gemini_err
 
-        # If keys are present but both failed
-        if (settings.OPENAI_API_KEY or settings.GEMINI_API_KEY) and last_err:
+        # 3. Try OpenRouter multimodal model transcription if OpenRouter API key is present
+        if settings.OPENROUTER_API_KEY:
+            try:
+                import base64
+                import urllib.request
+                import json
+                
+                with open(temp_file_path, "rb") as f:
+                    audio_data = base64.b64encode(f.read()).decode("utf-8")
+                
+                file_ext = os.path.splitext(file.filename)[1].lower().replace(".", "")
+                if file_ext not in ["wav", "mp3", "flac", "ogg", "webm", "m4a"]:
+                    file_ext = "wav"
+                
+                models_to_try = ["google/gemini-2.5-flash", "google/gemini-2.0-flash"]
+                transcript_text = None
+                for model_name in models_to_try:
+                    try:
+                        print(f"[Voice] Trying OpenRouter model {model_name}...")
+                        payload = {
+                            "model": model_name,
+                            "messages": [
+                                {
+                                    "role": "user",
+                                    "content": [
+                                        {
+                                            "type": "text",
+                                            "text": "Transcribe this audio recording exactly. Do not add any introduction, explanations, or commentary. Output only the transcription."
+                                        },
+                                        {
+                                            "type": "input_audio",
+                                            "input_audio": {
+                                                "data": audio_data,
+                                                "format": file_ext
+                                            }
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                        
+                        req = urllib.request.Request(
+                            "https://openrouter.ai/api/v1/chat/completions",
+                            data=json.dumps(payload).encode("utf-8"),
+                            headers={
+                                "Authorization": f"Bearer {settings.OPENROUTER_API_KEY}",
+                                "Content-Type": "application/json",
+                            },
+                            method="POST"
+                        )
+                        
+                        with urllib.request.urlopen(req, timeout=30) as response:
+                            res_data = json.loads(response.read().decode("utf-8"))
+                            if "choices" in res_data and len(res_data["choices"]) > 0:
+                                transcript_text = res_data["choices"][0]["message"]["content"].strip()
+                                if transcript_text:
+                                    break
+                            elif "error" in res_data:
+                                raise Exception(res_data["error"].get("message", "Unknown OpenRouter error"))
+                    except Exception as model_err:
+                        print(f"[Voice] OpenRouter model {model_name} failed: {model_err}")
+                        last_err = model_err
+                
+                if transcript_text:
+                    return {"transcript": transcript_text}
+            except Exception as or_err:
+                print(f"[Voice] OpenRouter transcription failed: {or_err}")
+                last_err = or_err
+
+        # If keys are present but all failed
+        if (settings.OPENAI_API_KEY or settings.GEMINI_API_KEY or settings.OPENROUTER_API_KEY) and last_err:
             raise HTTPException(
                 status_code=500,
                 detail=f"Transcription failed: {str(last_err)}"
@@ -102,7 +171,7 @@ async def transcribe_audio(
         # If keys are missing entirely
         raise HTTPException(
             status_code=503,
-            detail="Transcription service is not configured. Please set OPENAI_API_KEY or GEMINI_API_KEY in the environment."
+            detail="Transcription service is not configured. Please set OPENAI_API_KEY, GEMINI_API_KEY, or OPENROUTER_API_KEY in the environment."
         )
 
     except HTTPException as he:

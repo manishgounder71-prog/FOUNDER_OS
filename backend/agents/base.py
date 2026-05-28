@@ -38,13 +38,21 @@ def generate_text_gemini(prompt: str, system_instruction: str = "") -> str:
 
 def get_lyzr_model() -> Optional[OpenAIModel]:
     """Helper to instantiate Lyzr OpenAI model if API key is present."""
-    if not settings.OPENAI_API_KEY:
+    key = settings.OPENROUTER_API_KEY or settings.OPENAI_API_KEY
+    if not key:
         return None
     try:
+        if settings.OPENROUTER_API_KEY:
+            import os
+            os.environ["OPENAI_BASE_URL"] = "https://openrouter.ai/api/v1"
+            model_name = "openai/gpt-4o"
+        else:
+            model_name = "gpt-4o"
+            
         return OpenAIModel(
-            api_key=settings.OPENAI_API_KEY,
+            api_key=key,
             parameters={
-                "model": "gpt-4o",
+                "model": model_name,
                 "temperature": 0.2,
                 "max_tokens": 2000,
             }
