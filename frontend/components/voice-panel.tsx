@@ -170,33 +170,17 @@ export default function VoicePanel({ onTriggerWorkflow, onResearchQuery, isExecu
             setStatusMsg("Sending to Whisper API...");
             transcript = await transcribeAudio(audioBlob);
           } catch (err: any) {
-            // Backend transcription failed — go to preview with empty text so user can type
             console.warn("[Voice] Backend transcription unavailable:", err.message);
-            setPendingTranscript("");
-            setEditedTranscript("");
-            setPhase("preview");
-            setStatusMsg("Voice not detected. Type your command below.");
-            
-            // Show a friendly notice if it's the OpenRouter balance/credit issue, else general message
-            const friendlyErr = err.message && (err.message.includes("50") || err.message.includes("balance") || err.message.includes("402"))
-              ? "Using Offline Mode (OpenRouter requires >= $0.50). Add GEMINI_API_KEY in .env for free fallback, or type below."
-              : "Voice not detected. Type your command manually and click Deploy.";
-            setError(friendlyErr);
-            stream.getTracks().forEach(t => t.stop());
-            return;
           }
         }
 
-        if (!transcript || !transcript.trim()) {
-          // Show editable preview so user can type their command
-          setPendingTranscript("");
-          setEditedTranscript("");
-          setPhase("preview");
-          setStatusMsg("Voice not detected. Type your command below.");
-          setError("Voice not detected. Type your command manually and click Deploy.");
-          stream.getTracks().forEach(t => t.stop());
-          return;
-        }
+        // Always show preview — user can type if speech failed, or confirm/edit if it worked
+        setPendingTranscript(transcript || "");
+        setEditedTranscript(transcript || customPrompt || "");
+        setPhase("preview");
+        setStatusMsg(transcript ? "Review your command before deploying." : "Type your command below.");
+        stream.getTracks().forEach(t => t.stop());
+        return;
 
         // ✅ Show transcript preview — let user confirm before deploying
         setPendingTranscript(transcript);
