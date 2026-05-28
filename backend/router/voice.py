@@ -57,13 +57,27 @@ async def transcribe_audio(
 
         if settings.GEMINI_API_KEY:
             try:
+                import subprocess
                 import google.generativeai as genai
                 genai.configure(api_key=settings.GEMINI_API_KEY)
-                print(f"[Voice] Uploading {temp_file_path} to Gemini for transcription...")
-                audio_file = genai.upload_file(path=temp_file_path)
+                
+                # Convert to WAV first (Gemini handles WAV reliably vs WebM)
+                wav_path = temp_file_path.rsplit(".", 1)[0] + ".wav"
+                try:
+                    subprocess.run(
+                        ["ffmpeg", "-y", "-i", temp_file_path, "-acodec", "pcm_s16le", "-ar", "16000", "-ac", "1", wav_path],
+                        capture_output=True, timeout=30
+                    )
+                    audio_path_for_gemini = wav_path
+                except Exception as conv_err:
+                    print(f"[Voice] ffmpeg conversion failed, trying original: {conv_err}")
+                    audio_path_for_gemini = temp_file_path
+                
+                print(f"[Voice] Uploading {audio_path_for_gemini} to Gemini...")
+                audio_file = genai.upload_file(path=audio_path_for_gemini)
                 
                 # Loop through available models to ensure compatibility
-                models_to_try = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
+                models_to_try = ["gemini-2.0-flash", "gemini-1.5-flash"]
                 response = None
                 for m_name in models_to_try:
                     try:
@@ -77,6 +91,11 @@ async def transcribe_audio(
                     except Exception as model_err:
                         print(f"[Voice] Gemini model {m_name} failed: {model_err}")
                         last_err = model_err
+                
+                # Clean up WAV if it was created
+                if audio_path_for_gemini == wav_path and os.path.exists(wav_path):
+                    try: os.remove(wav_path)
+                    except: pass
                 
                 try:
                     audio_file.delete()
