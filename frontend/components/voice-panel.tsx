@@ -3,7 +3,7 @@
 import React, { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Mic, MicOff, Radio, Play, AlertCircle, Zap, Search, CheckCircle, Edit3 } from "lucide-react";
-import { simulateOmiWebhook, transcribeAudio } from "@/lib/api";
+import { simulateOmiWebhook } from "@/lib/api";
 
 interface VoicePanelProps {
   onTriggerWorkflow: (workflowId: string, promptText: string) => void;
@@ -41,79 +41,94 @@ export default function VoicePanel({ onTriggerWorkflow, onResearchQuery, isExecu
   const [pendingTranscript, setPendingTranscript] = useState<string>("");
   const [editedTranscript, setEditedTranscript] = useState<string>("");
 
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const audioChunksRef = useRef<Blob[]>([]);
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const analyserRef = useRef<AnalyserNode | null>(null);
-  const animationFrameRef = useRef<number | null>(null);
   const recognitionRef = useRef<any>(null);
   const recognitionTranscriptRef = useRef<string>("");
 
   const currentPhase = STATUS_PHASES.find(p => p.key === phase) ?? STATUS_PHASES[0];
 
-  // Clean up audio nodes on unmount
+  // Clean up on unmount
   React.useEffect(() => {
     return () => {
-      if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
-      if (audioContextRef.current) audioContextRef.current.close().catch(() => {});
       if (recognitionRef.current) { try { recognitionRef.current.abort(); } catch (e) {} }
     };
   }, []);
 
-  const startRecording = async () => {
+  const startRecording = () => {
     setError(null);
     setPendingTranscript("");
     setEditedTranscript("");
-    audioChunksRef.current = [];
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream, { mimeType: MediaRecorder.isTypeSupported("audio/webm") ? "audio/webm" : "audio/wav" });
-      mediaRecorderRef.current = mediaRecorder;
 
-      mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) audioChunksRef.current.push(event.data);
-      };
+    // Try Web Speech API (Chrome/Edge) for live transcription — no backend needed
+    const SpeechRecognitionClass = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (SpeechRecognitionClass) {
+      try {
+        const recognition = new SpeechRecognitionClass();
+        recognition.continuous = false;
+        recognition.interimResults = true;
+        recognition.lang = "en-US";
 
-      mediaRecorder.onstop = async () => {
-        const mimeType = mediaRecorderRef.current?.mimeType || "audio/webm";
-        const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
-        setPhase("transcribing");
-        setStatusMsg("Transcribing via Gemini...");
-        let transcript = "";
-        try {
-          transcript = await transcribeAudio(audioBlob);
-        } catch (err: any) {
-          console.warn("[Voice] Backend transcription failed:", err.message);
-        }
-        setPendingTranscript(transcript || "");
-        setEditedTranscript(transcript || customPrompt || "");
-        setPhase("preview");
-        setStatusMsg(transcript ? "Review your command before deploying." : "Type your command below.");
-        stream.getTracks().forEach(t => t.stop());
-      };
+        recognition.onresult = (event: any) => {
+          const text = event.results[event.results.length - 1][0].transcript;
+          setPendingTranscript(text);
+          setEditedTranscript(text);
+        };
 
-      mediaRecorder.start();
-      setIsRecording(true);
-      setPhase("listening");
-      setStatusMsg("Listening...");
-    } catch {
-      // Mic not available — just open preview for typing
-      setEditedTranscript(customPrompt || "");
-      setPhase("preview");
-      setStatusMsg("Type your command below.");
+        recognition.onerror = () => {
+          // Web Speech failed — show textarea for typing
+          setEditedTranscript(customPrompt || "");
+          setPhase("preview");
+          setStatusMsg("Type your command below.");
+        };
+
+        recognition.onend = () => {
+          setIsRecording(false);
+          const finalText = recognitionTranscriptRef.current;
+          if (finalText) {
+            setPendingTranscript(finalText);
+            setEditedTranscript(finalText);
+            setPhase("preview");
+            setStatusMsg("Review your command before deploying.");
+          } else {
+            // No speech detected — show textarea for typing
+            setEditedTranscript(customPrompt || "");
+            setPhase("preview");
+            setStatusMsg("Type your command below.");
+          }
+        };
+
+        recognitionRef.current = recognition;
+        recognitionTranscriptRef.current = "";
+        recognition.start();
+        setIsRecording(true);
+        setPhase("listening");
+        setStatusMsg("Listening...");
+        return;
+      } catch {
+        // Web Speech init failed — fall through to text input
+      }
     }
+
+    // No speech recognition available — show textarea for typing
+    setEditedTranscript(customPrompt || "");
+    setPhase("preview");
+    setStatusMsg("Type your command below.");
   };
 
   const stopRecording = () => {
-    if (mediaRecorderRef.current && isRecording) {
-      mediaRecorderRef.current.stop();
-      setIsRecording(false);
+    setIsRecording(false);
+    if (recognitionRef.current) {
+      try { recognitionRef.current.stop(); } catch (e) {}
+      recognitionRef.current = null;
     }
   };
 
   const confirmAndDeploy = async () => {
     const text = editedTranscript.trim();
     if (!text) { setError("Command cannot be empty."); return; }
+    if (recognitionRef.current) {
+      try { recognitionRef.current.abort(); } catch (e) {}
+      recognitionRef.current = null;
+    }
     setError(null);
     setPendingTranscript("");
     setEditedTranscript("");
@@ -134,6 +149,10 @@ export default function VoicePanel({ onTriggerWorkflow, onResearchQuery, isExecu
   const cancelPreview = () => {
     setPendingTranscript("");
     setEditedTranscript("");
+    if (recognitionRef.current) {
+      try { recognitionRef.current.abort(); } catch (e) {}
+      recognitionRef.current = null;
+    }
     setPhase("standby");
     setStatusMsg("Ready to receive commands...");
   };
