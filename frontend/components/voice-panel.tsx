@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useState, useRef } from "react";
+import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Mic, MicOff, Radio, Play, AlertCircle, Zap, Search } from "lucide-react";
-import { simulateOmiWebhook, transcribeAudio } from "@/lib/api";
+import { Radio, Play, Search, Headphones, AlertCircle } from "lucide-react";
+import { simulateOmiWebhook } from "@/lib/api";
 
 interface VoicePanelProps {
   onTriggerWorkflow: (workflowId: string, promptText: string) => void;
@@ -20,103 +20,25 @@ const PRESETS = [
 ];
 
 export default function VoicePanel({ onTriggerWorkflow, onResearchQuery, isExecuting, isResearching }: VoicePanelProps) {
-  const [recording, setRecording] = useState(false);
-  const [phase, setPhase] = useState("idle");
-  const [status, setStatus] = useState("Ready to receive commands...");
   const [preset, setPreset] = useState(PRESETS[0]);
   const [prompt, setPrompt] = useState("");
   const [error, setError] = useState<string | null>(null);
-
-  const recorderRef = useRef<MediaRecorder | null>(null);
-  const chunksRef = useRef<Blob[]>([]);
-
-  React.useEffect(() => {
-    return () => {
-      if (recorderRef.current && recorderRef.current.state !== "inactive") {
-        recorderRef.current.stop();
-      }
-    };
-  }, []);
-
-  const startRecording = async () => {
-    setError(null);
-    chunksRef.current = [];
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mr = new MediaRecorder(stream, {
-        mimeType: MediaRecorder.isTypeSupported("audio/webm") ? "audio/webm" : "audio/wav"
-      });
-
-      mr.ondataavailable = (e) => {
-        if (e.data.size > 0) chunksRef.current.push(e.data);
-      };
-
-      mr.onstop = async () => {
-        stream.getTracks().forEach(t => t.stop());
-        const blob = new Blob(chunksRef.current, { type: mr.mimeType });
-        if (blob.size < 200) {
-          setError("Audio too short. Speak longer or check your mic.");
-          setRecording(false);
-          return;
-        }
-        setStatus("Transcribing...");
-        try {
-          const text = await transcribeAudio(blob);
-          if (text) {
-            if (text.startsWith("[ERROR:")) {
-              setError(text.replace(/^\[ERROR: |\]$/g, ""));
-            } else {
-              setPrompt(text);
-              setStatus(`Ready: "${text.slice(0, 60)}${text.length > 60 ? "..." : ""}"`);
-            }
-          } else {
-            setError("No speech detected. Try speaking louder.");
-          }
-        } catch (err: any) {
-          setError(`API error: ${err.message}`);
-        }
-        setRecording(false);
-      };
-
-      mr.start();
-      recorderRef.current = mr;
-      setRecording(true);
-      setStatus("Recording...");
-    } catch {
-      setError("Microphone access blocked. Allow mic in browser settings.");
-    }
-  };
-
-  const stopRecording = () => {
-    if (recorderRef.current && recorderRef.current.state !== "inactive") {
-      recorderRef.current.stop();
-      recorderRef.current = null;
-    }
-  };
+  const [status, setStatus] = useState("Ready to receive commands...");
 
   const deploy = async () => {
     setError(null);
     const text = prompt.trim() || preset;
-    if (!text.trim()) { setError("Type or speak a command first."); return; }
-    setPhase("deploy");
+    if (!text.trim()) { setError("Type or select a command first."); return; }
     setStatus(`Dispatching: "${text.slice(0, 50)}${text.length > 50 ? "..." : ""}"`);
     try {
       const id = await simulateOmiWebhook(text);
-      setPhase("run");
       setStatus("Workforce online. Streaming...");
       onTriggerWorkflow(id, text);
     } catch {
       setError("Workflow dispatch failed.");
-      setPhase("idle");
       setStatus("Ready to receive commands...");
     }
   };
-
-  const micColor = recording
-    ? "border-cyan-400 shadow-[0_0_30px_rgba(0,212,255,0.4)]"
-    : isExecuting
-    ? "border-purple-500 shadow-[0_0_30px_rgba(168,85,247,0.3)] animate-pulse"
-    : "border-gray-800";
 
   return (
     <motion.div
@@ -130,36 +52,26 @@ export default function VoicePanel({ onTriggerWorkflow, onResearchQuery, isExecu
 
       <div>
         <div className="flex items-center gap-2 mb-1">
-          <motion.div animate={{ rotate: recording ? [0, 10, -10, 0] : 0 }} transition={{ repeat: Infinity, duration: 1.5 }}>
-            <Radio className="w-4 h-4 text-cyan-400" />
-          </motion.div>
-          <h2 className="text-sm font-bold tracking-widest text-gray-100 uppercase font-mono">Voice Command Center</h2>
+          <Headphones className="w-4 h-4 text-cyan-400" />
+          <h2 className="text-sm font-bold tracking-widest text-gray-100 uppercase font-mono">Omi Voice Intake</h2>
         </div>
-        <p className="text-[10px] text-gray-500 tracking-wide">Record audio — transcribed via backend</p>
+        <p className="text-[10px] text-gray-500 tracking-wide">
+          Real Omi device &nbsp;|&nbsp; Text simulation
+        </p>
       </div>
 
       <div className="flex flex-col items-center justify-center py-1 gap-2.5">
-        <div className="relative flex items-center justify-center">
-          {recording && (
-            <>
-              <div className="absolute w-24 h-24 rounded-full border border-cyan-400/30 neural-ring animate-ping" />
-              <div className="absolute w-24 h-24 rounded-full border border-cyan-400/20 neural-ring animate-ping" style={{ animationDelay: "0.3s" }} />
-              <div className="absolute w-24 h-24 rounded-full border border-cyan-400/10 neural-ring animate-ping" style={{ animationDelay: "0.6s" }} />
-            </>
-          )}
-          <div className={`w-16 h-16 rounded-full border-2 ${micColor} flex items-center justify-center bg-black/50 transition-all duration-300`}>
-            {isExecuting ? (
-              <Zap className="w-5 h-5 text-purple-400" />
-            ) : (
-              <Mic className={`w-5 h-5 ${recording ? "text-cyan-400" : "text-gray-500"}`} />
-            )}
+        <div className="flex items-center justify-center gap-2">
+          <div className="flex items-center gap-1.5 bg-green-500/10 border border-green-500/25 rounded-full px-3 py-1">
+            <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse" />
+            <span className="text-[9px] font-mono text-green-300 uppercase tracking-wider font-bold">Omi Ready</span>
           </div>
         </div>
 
         <AnimatePresence mode="wait">
-          <motion.div key={phase + String(recording)} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} className="text-center">
-            <p className={`text-[10px] font-mono font-bold tracking-widest uppercase ${recording ? "text-cyan-400" : "text-gray-500"}`}>
-              {recording ? "RECORDING" : phase === "deploy" ? "DEPLOYING" : phase === "run" ? "EXECUTING" : "STANDBY"}
+          <motion.div key={String(isExecuting)} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} className="text-center">
+            <p className={`text-[10px] font-mono font-bold tracking-widest uppercase ${isExecuting ? "text-purple-400" : "text-gray-500"}`}>
+              {isExecuting ? "EXECUTING" : "STANDBY"}
             </p>
             <p className="text-[9px] text-gray-600 mt-0.5 font-mono truncate max-w-[200px]">{status}</p>
           </motion.div>
@@ -172,37 +84,23 @@ export default function VoicePanel({ onTriggerWorkflow, onResearchQuery, isExecu
           </motion.div>
         )}
 
-        <motion.button
-          onClick={recording ? stopRecording : startRecording}
-          disabled={isExecuting}
-          whileHover={{ scale: 1.04 }}
-          whileTap={{ scale: 0.96 }}
-          className={`px-4 py-1.5 rounded-full font-bold text-[10px] tracking-widest uppercase flex items-center gap-2 font-mono transition-all ${
-            recording
-              ? "bg-red-500/15 hover:bg-red-500/25 border border-red-500/40 text-red-300"
-              : "bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 text-cyan-300 disabled:opacity-40"
-          }`}
-        >
-          {recording ? <><MicOff className="w-3.5 h-3.5" /> Stop</> : <><Mic className="w-3.5 h-3.5" /> Record</>}
-        </motion.button>
+        <AnimatePresence>
+          {prompt.trim() && !isExecuting && (
+            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="w-full">
+              <motion.button
+                onClick={() => onResearchQuery(prompt.trim())}
+                disabled={isResearching}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                className="w-full bg-gradient-to-r from-cyan-500/10 to-emerald-500/10 hover:from-cyan-500/20 hover:to-emerald-500/20 border border-cyan-500/30 text-cyan-300 disabled:opacity-40 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest flex items-center justify-center gap-2 font-mono"
+              >
+                <Search className="w-3 h-3" />
+                {isResearching ? "Searching..." : "Search Web Now"}
+              </motion.button>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
-
-      <AnimatePresence>
-        {prompt.trim() && !isExecuting && !recording && (
-          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="px-1">
-            <motion.button
-              onClick={() => onResearchQuery(prompt.trim())}
-              disabled={isResearching}
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              className="w-full bg-gradient-to-r from-cyan-500/10 to-emerald-500/10 hover:from-cyan-500/20 hover:to-emerald-500/20 border border-cyan-500/30 text-cyan-300 disabled:opacity-40 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest flex items-center justify-center gap-2 font-mono mb-2"
-            >
-              <Search className="w-3 h-3" />
-              {isResearching ? "Searching..." : "Search Web Now"}
-            </motion.button>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       <div className="border-t border-gray-800/70 pt-2.5 space-y-1.5">
         <h3 className="text-[9px] font-bold text-gray-500 uppercase tracking-[0.25em] flex items-center gap-1.5">
@@ -226,7 +124,7 @@ export default function VoicePanel({ onTriggerWorkflow, onResearchQuery, isExecu
           <label className="text-[9px] text-gray-600 uppercase tracking-widest">Custom / Result</label>
           <input
             type="text"
-            placeholder="Type or record above..."
+            placeholder="Type or speak into Omi device..."
             value={prompt}
             onChange={(e) => { setPrompt(e.target.value); setPreset(""); }}
             className="glass-input rounded-lg p-1.5 text-[11px] outline-none"
@@ -235,7 +133,7 @@ export default function VoicePanel({ onTriggerWorkflow, onResearchQuery, isExecu
 
         <motion.button
           onClick={deploy}
-          disabled={isExecuting || recording}
+          disabled={isExecuting}
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
           className="w-full bg-gradient-to-r from-purple-500/10 to-cyan-500/10 hover:from-purple-500/20 hover:to-cyan-500/20 border border-purple-500/30 text-purple-300 disabled:opacity-40 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest flex items-center justify-center gap-2 font-mono"

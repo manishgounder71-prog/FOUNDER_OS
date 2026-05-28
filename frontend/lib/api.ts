@@ -109,35 +109,6 @@ export async function executeDirectiveResearch(query: string): Promise<{ directi
 }
 
 /**
- * Publishes a browser audio blob for transcription (Whisper/fallback).
- * Can optionally supply a mock text prompt for local validation.
- */
-export async function transcribeAudio(audioBlob: Blob, mockPrompt?: string): Promise<string> {
-  const formData = new FormData();
-  const mimeType = audioBlob.type || "audio/webm";
-  const extension = mimeType.includes("ogg") ? "ogg" : mimeType.includes("wav") ? "wav" : "webm";
-  formData.append("file", audioBlob, `recording.${extension}`);
-  if (mockPrompt) {
-    formData.append("mock_prompt", mockPrompt);
-  }
-
-  console.log(`[API] Sending ${audioBlob.size} bytes to /api/voice/transcribe (${audioBlob.type})`);
-  const res = await fetch(`${BACKEND_URL}/api/voice/transcribe`, {
-    method: "POST",
-    body: formData,
-  });
-  console.log(`[API] Response status: ${res.status}`);
-  if (!res.ok) {
-    let body = "";
-    try { body = await res.text(); } catch (e) {}
-    throw new Error(`HTTP ${res.status}: ${body || res.statusText}`);
-  }
-  const data = await res.json();
-  console.log(`[API] Transcript response:`, data);
-  return data.transcript;
-}
-
-/**
  * Saves a new vector memory directly inside Qdrant database.
  */
 export async function saveMemory(collection: string, text: string, metadata?: Record<string, any>): Promise<string> {
