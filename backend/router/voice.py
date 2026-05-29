@@ -30,7 +30,7 @@ async def transcribe(file: UploadFile = File(...)):
         
         # Configure model fallback list
         models_to_try = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
-        last_error = None
+        errors = []
         
         for model_name in models_to_try:
             try:
@@ -46,11 +46,12 @@ async def transcribe(file: UploadFile = File(...)):
                 print(f"[Backend Transcribe] Transcription succeeded with model '{model_name}': '{text}'")
                 return {"text": text}
             except Exception as e:
-                print(f"[Backend Transcribe] Model '{model_name}' failed: {e}")
-                last_error = e
+                err_msg = str(e)
+                print(f"[Backend Transcribe] Model '{model_name}' failed: {err_msg}")
+                errors.append(f"{model_name}: {err_msg}")
                 
-        if last_error:
-            raise last_error
+        if errors:
+            raise Exception(" | ".join(errors))
             
     except Exception as e:
         print(f"[Backend Transcribe] Error during transcription: {e}")
