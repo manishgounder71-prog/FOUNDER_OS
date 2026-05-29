@@ -19,16 +19,13 @@ const PRESETS = [
   "Find market opportunities for a B2B SaaS pricing optimization dashboard.",
 ];
 
-const GEMINI_KEY = "AIzaSyB5Wx1lJHIEnusjH3WVQFD4B7R0UCbyIaw";
-
 export default function VoicePanel({ onTriggerWorkflow, onResearchQuery, isExecuting, isResearching }: VoicePanelProps) {
   const [preset, setPreset] = useState(PRESETS[0]);
   const [prompt, setPrompt] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState("Ready");
-  const [recording, setRecording] = useState(false);
-  const recorderRef = useRef<MediaRecorder | null>(null);
-  const chunksRef = useRef<Blob[]>([]);
+  const [listening, setListening] = useState(false);
+  const recognitionRef = useRef<any>(null);
 
   const deploy = async () => {
     setError(null);
@@ -45,101 +42,50 @@ export default function VoicePanel({ onTriggerWorkflow, onResearchQuery, isExecu
     }
   };
 
-  const transcribeWithGemini = async (audioBlob: Blob): Promise<string> => {
-    const rawMimeType = audioBlob.type || "audio/webm";
-    const mimeType = rawMimeType.split(";")[0];
-    const reader = new FileReader();
-    const base64Promise = new Promise<string>((resolve, reject) => {
-      reader.onload = () => {
-        const result = reader.result as string;
-        const base64 = result.split(",")[1];
-        resolve(base64);
-      };
-      reader.onerror = reject;
-    });
-    reader.readAsDataURL(audioBlob);
-    const b64 = await base64Promise;
+  const startListening = () => {
+    setError(null);
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      setError("Speech not supported in this browser. Use Chrome or Edge.");
+      return;
+    }
+    const recognition = new SpeechRecognition();
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.lang = "en-US";
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_KEY}`;
-    const payload = {
-      contents: [{
-        parts: [
-          { inlineData: { mimeType: mimeType, data: b64 } },
-          { text: "Transcribe this audio exactly. Return ONLY the spoken words." }
-        ]
-      }]
+    recognition.onresult = (event: any) => {
+      const text = event.results[0][0].transcript;
+      setPrompt(text);
+      setPreset("");
+      setListening(false);
+      setStatus(`"${text.slice(0, 40)}${text.length > 40 ? "..." : ""}"`);
     };
 
-    const res = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
+    recognition.onerror = (event: any) => {
+      const code = event.error || "unknown";
+      setError(`Speech error: ${code}. ${code === "network" ? "Google speech servers unreachable." : code === "not-allowed" ? "Mic blocked in browser settings." : code === "no-speech" ? "No speech detected." : "Try Chrome or check mic."}`);
+      setListening(false);
+      setStatus("Ready");
+    };
 
-    if (!res.ok) {
-      const body = await res.text();
-      throw new Error(`Gemini HTTP ${res.status}: ${body.slice(0, 200)}`);
-    }
+    recognition.onend = () => {
+      setListening(false);
+    };
 
-    const result = await res.json();
-    const text = result?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || "";
-    return text;
+    recognitionRef.current = recognition;
+    recognition.start();
+    setListening(true);
+    setStatus("Listening...");
   };
 
-  const startRecording = async () => {
-    setError(null);
-    chunksRef.current = [];
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mime = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
-        ? "audio/webm;codecs=opus"
-        : MediaRecorder.isTypeSupported("audio/webm")
-        ? "audio/webm"
-        : "audio/wav";
-      const mr = new MediaRecorder(stream, { mimeType: mime });
-
-      mr.ondataavailable = (e) => {
-        if (e.data.size > 0) chunksRef.current.push(e.data);
-      };
-
-      mr.onstop = async () => {
-        stream.getTracks().forEach(t => t.stop());
-        const blob = new Blob(chunksRef.current, { type: mr.mimeType });
-        if (blob.size < 500) {
-          setError("Audio too short. Speak longer.");
-          setRecording(false);
-          return;
-        }
-        setStatus("Transcribing via Gemini...");
-        try {
-          const text = await transcribeWithGemini(blob);
-          if (text) {
-            setPrompt(text);
-            setPreset("");
-            setStatus(`"${text.slice(0, 40)}${text.length > 40 ? "..." : ""}"`);
-          } else {
-            setError("Gemini returned empty. Speak clearly.");
-          }
-        } catch (err: any) {
-          setError(`Gemini error: ${err.message}`);
-        }
-        setRecording(false);
-      };
-
-      mr.start();
-      recorderRef.current = mr;
-      setRecording(true);
-      setStatus("Recording...");
-    } catch {
-      setError("Microphone blocked. Allow mic in browser settings.");
+  const stopListening = () => {
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
+      recognitionRef.current = null;
     }
-  };
-
-  const stopRecording = () => {
-    if (recorderRef.current && recorderRef.current.state !== "inactive") {
-      recorderRef.current.stop();
-      recorderRef.current = null;
-    }
+    setListening(false);
+    setStatus("Ready");
   };
 
   return (
@@ -158,13 +104,13 @@ export default function VoicePanel({ onTriggerWorkflow, onResearchQuery, isExecu
           <h2 className="text-sm font-bold tracking-widest text-gray-100 uppercase font-mono">Voice Command</h2>
         </div>
         <p className="text-[10px] text-gray-500 tracking-wide">
-          Record &nbsp;|&nbsp; Presets &nbsp;|&nbsp; Text
+          Browser speech &nbsp;|&nbsp; Presets &nbsp;|&nbsp; Text
         </p>
       </div>
 
       <div className="flex flex-col items-center justify-center py-1 gap-2.5">
         <div className="relative flex items-center justify-center">
-          {recording && (
+          {listening && (
             <>
               <div className="absolute w-24 h-24 rounded-full border border-cyan-400/30 animate-ping" />
               <div className="absolute w-24 h-24 rounded-full border border-cyan-400/20 animate-ping" style={{ animationDelay: "0.3s" }} />
@@ -172,16 +118,16 @@ export default function VoicePanel({ onTriggerWorkflow, onResearchQuery, isExecu
             </>
           )}
           <div className={`w-16 h-16 rounded-full border-2 flex items-center justify-center bg-black/50 transition-all duration-300 ${
-            recording ? "border-cyan-400 shadow-[0_0_30px_rgba(0,212,255,0.4)]" : "border-gray-800"
+            listening ? "border-cyan-400 shadow-[0_0_30px_rgba(0,212,255,0.4)]" : "border-gray-800"
           }`}>
-            <Mic className={`w-5 h-5 ${recording ? "text-cyan-400" : "text-gray-500"}`} />
+            <Mic className={`w-5 h-5 ${listening ? "text-cyan-400" : "text-gray-500"}`} />
           </div>
         </div>
 
         <AnimatePresence mode="wait">
-          <motion.div key={String(recording) + String(isExecuting)} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} className="text-center">
-            <p className={`text-[10px] font-mono font-bold tracking-widest uppercase ${recording ? "text-cyan-400" : isExecuting ? "text-purple-400" : "text-gray-500"}`}>
-              {recording ? "RECORDING" : isExecuting ? "EXECUTING" : "STANDBY"}
+          <motion.div key={String(listening) + String(isExecuting)} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} className="text-center">
+            <p className={`text-[10px] font-mono font-bold tracking-widest uppercase ${listening ? "text-cyan-400" : isExecuting ? "text-purple-400" : "text-gray-500"}`}>
+              {listening ? "LISTENING" : isExecuting ? "EXECUTING" : "STANDBY"}
             </p>
             <p className="text-[9px] text-gray-600 mt-0.5 font-mono truncate max-w-[200px]">{status}</p>
           </motion.div>
@@ -195,21 +141,21 @@ export default function VoicePanel({ onTriggerWorkflow, onResearchQuery, isExecu
         )}
 
         <motion.button
-          onClick={recording ? stopRecording : startRecording}
+          onClick={listening ? stopListening : startListening}
           disabled={isExecuting}
           whileHover={{ scale: 1.04 }}
           whileTap={{ scale: 0.96 }}
           className={`px-4 py-1.5 rounded-full font-bold text-[10px] tracking-widest uppercase flex items-center gap-2 font-mono transition-all ${
-            recording
+            listening
               ? "bg-red-500/15 hover:bg-red-500/25 border border-red-500/40 text-red-300"
               : "bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 text-cyan-300 disabled:opacity-40"
           }`}
         >
-          {recording ? <><MicOff className="w-3.5 h-3.5" /> Stop</> : <><Mic className="w-3.5 h-3.5" /> Speak</>}
+          {listening ? <><MicOff className="w-3.5 h-3.5" /> Stop</> : <><Mic className="w-3.5 h-3.5" /> Speak</>}
         </motion.button>
 
         <AnimatePresence>
-          {prompt.trim() && !isExecuting && !recording && (
+          {prompt.trim() && !isExecuting && !listening && (
             <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="w-full">
               <motion.button
                 onClick={() => onResearchQuery(prompt.trim())}
@@ -257,7 +203,7 @@ export default function VoicePanel({ onTriggerWorkflow, onResearchQuery, isExecu
 
         <motion.button
           onClick={deploy}
-          disabled={isExecuting || recording}
+          disabled={isExecuting || listening}
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
           className="w-full bg-gradient-to-r from-purple-500/10 to-cyan-500/10 hover:from-purple-500/20 hover:to-cyan-500/20 border border-purple-500/30 text-purple-300 disabled:opacity-40 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest flex items-center justify-center gap-2 font-mono"
