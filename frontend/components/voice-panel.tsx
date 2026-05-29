@@ -54,6 +54,26 @@ export default function VoicePanel({ onTriggerWorkflow, onResearchQuery, isExecu
     recognition.interimResults = false;
     recognition.lang = "en-US";
 
+    recognition.onstart = () => {
+      setStatus("Microphone active. Speak now...");
+    };
+
+    recognition.onsoundstart = () => {
+      setStatus("Sound detected...");
+    };
+
+    recognition.onspeechstart = () => {
+      setStatus("Speech detected. Transcribing...");
+    };
+
+    recognition.onspeechend = () => {
+      setStatus("Speech ended. Finalizing...");
+    };
+
+    recognition.onnomatch = () => {
+      setError("No speech match found. Try again.");
+    };
+
     recognition.onresult = (event: any) => {
       const text = event.results[0][0].transcript;
       setPrompt(text);
