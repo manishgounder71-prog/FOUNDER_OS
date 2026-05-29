@@ -3,7 +3,7 @@
 import React, { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Radio, Play, Search, Mic, MicOff, AlertCircle } from "lucide-react";
-import { simulateOmiWebhook } from "@/lib/api";
+import { simulateOmiWebhook, transcribeAudio } from "@/lib/api";
 
 interface VoicePanelProps {
   onTriggerWorkflow: (workflowId: string, promptText: string) => void;
@@ -24,8 +24,9 @@ export default function VoicePanel({ onTriggerWorkflow, onResearchQuery, isExecu
   const [prompt, setPrompt] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState("Ready");
-  const [listening, setListening] = useState(false);
-  const recognitionRef = useRef<any>(null);
+  const [recording, setRecording] = useState(false);
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
 
   const deploy = async () => {
     setError(null);
@@ -42,70 +43,62 @@ export default function VoicePanel({ onTriggerWorkflow, onResearchQuery, isExecu
     }
   };
 
-  const startListening = () => {
+  const startRecording = async () => {
     setError(null);
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      setError("Speech not supported in this browser. Use Chrome or Edge.");
-      return;
+    chunksRef.current = [];
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mime = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
+        ? "audio/webm;codecs=opus"
+        : MediaRecorder.isTypeSupported("audio/webm")
+        ? "audio/webm"
+        : "audio/wav";
+      const mr = new MediaRecorder(stream, { mimeType: mime });
+
+      mr.ondataavailable = (e) => {
+        if (e.data.size > 0) chunksRef.current.push(e.data);
+      };
+
+      mr.onstop = async () => {
+        stream.getTracks().forEach(t => t.stop());
+        const blob = new Blob(chunksRef.current, { type: mr.mimeType });
+        if (blob.size < 500) {
+          setError("Audio too short. Speak longer.");
+          setRecording(false);
+          return;
+        }
+        setStatus("Transcribing via server...");
+        try {
+          const text = await transcribeAudio(blob);
+          if (text) {
+            setPrompt(text);
+            setPreset("");
+            setStatus(`"${text.slice(0, 40)}${text.length > 40 ? "..." : ""}"`);
+          } else {
+            setError("Server returned empty. Speak clearly.");
+          }
+        } catch (err: any) {
+          setError(`Transcription error: ${err.message}`);
+          setStatus("Ready");
+        }
+        setRecording(false);
+      };
+
+      mr.start();
+      recorderRef.current = mr;
+      setRecording(true);
+      setStatus("Recording...");
+    } catch (err: any) {
+      setError("Microphone blocked. Allow mic in browser settings.");
+      console.error(err);
     }
-    const recognition = new SpeechRecognition();
-    recognition.continuous = false;
-    recognition.interimResults = false;
-    recognition.lang = "en-US";
-
-    recognition.onstart = () => {
-      setStatus("Microphone active. Speak now...");
-    };
-
-    recognition.onsoundstart = () => {
-      setStatus("Sound detected...");
-    };
-
-    recognition.onspeechstart = () => {
-      setStatus("Speech detected. Transcribing...");
-    };
-
-    recognition.onspeechend = () => {
-      setStatus("Speech ended. Finalizing...");
-    };
-
-    recognition.onnomatch = () => {
-      setError("No speech match found. Try again.");
-    };
-
-    recognition.onresult = (event: any) => {
-      const text = event.results[0][0].transcript;
-      setPrompt(text);
-      setPreset("");
-      setListening(false);
-      setStatus(`"${text.slice(0, 40)}${text.length > 40 ? "..." : ""}"`);
-    };
-
-    recognition.onerror = (event: any) => {
-      const code = event.error || "unknown";
-      setError(`Speech error: ${code}. ${code === "network" ? "Google speech servers unreachable." : code === "not-allowed" ? "Mic blocked in browser settings." : code === "no-speech" ? "No speech detected." : "Try Chrome or check mic."}`);
-      setListening(false);
-      setStatus("Ready");
-    };
-
-    recognition.onend = () => {
-      setListening(false);
-    };
-
-    recognitionRef.current = recognition;
-    recognition.start();
-    setListening(true);
-    setStatus("Listening...");
   };
 
-  const stopListening = () => {
-    if (recognitionRef.current) {
-      recognitionRef.current.stop();
-      recognitionRef.current = null;
+  const stopRecording = () => {
+    if (recorderRef.current && recorderRef.current.state !== "inactive") {
+      recorderRef.current.stop();
+      recorderRef.current = null;
     }
-    setListening(false);
-    setStatus("Ready");
   };
 
   return (
@@ -124,13 +117,13 @@ export default function VoicePanel({ onTriggerWorkflow, onResearchQuery, isExecu
           <h2 className="text-sm font-bold tracking-widest text-gray-100 uppercase font-mono">Voice Command</h2>
         </div>
         <p className="text-[10px] text-gray-500 tracking-wide">
-          Browser speech &nbsp;|&nbsp; Presets &nbsp;|&nbsp; Text
+          Record &nbsp;|&nbsp; Presets &nbsp;|&nbsp; Text
         </p>
       </div>
 
       <div className="flex flex-col items-center justify-center py-1 gap-2.5">
         <div className="relative flex items-center justify-center">
-          {listening && (
+          {recording && (
             <>
               <div className="absolute w-24 h-24 rounded-full border border-cyan-400/30 animate-ping" />
               <div className="absolute w-24 h-24 rounded-full border border-cyan-400/20 animate-ping" style={{ animationDelay: "0.3s" }} />
@@ -138,16 +131,16 @@ export default function VoicePanel({ onTriggerWorkflow, onResearchQuery, isExecu
             </>
           )}
           <div className={`w-16 h-16 rounded-full border-2 flex items-center justify-center bg-black/50 transition-all duration-300 ${
-            listening ? "border-cyan-400 shadow-[0_0_30px_rgba(0,212,255,0.4)]" : "border-gray-800"
+            recording ? "border-cyan-400 shadow-[0_0_30px_rgba(0,212,255,0.4)]" : "border-gray-800"
           }`}>
-            <Mic className={`w-5 h-5 ${listening ? "text-cyan-400" : "text-gray-500"}`} />
+            <Mic className={`w-5 h-5 ${recording ? "text-cyan-400" : "text-gray-500"}`} />
           </div>
         </div>
 
         <AnimatePresence mode="wait">
-          <motion.div key={String(listening) + String(isExecuting)} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} className="text-center">
-            <p className={`text-[10px] font-mono font-bold tracking-widest uppercase ${listening ? "text-cyan-400" : isExecuting ? "text-purple-400" : "text-gray-500"}`}>
-              {listening ? "LISTENING" : isExecuting ? "EXECUTING" : "STANDBY"}
+          <motion.div key={String(recording) + String(isExecuting)} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} className="text-center">
+            <p className={`text-[10px] font-mono font-bold tracking-widest uppercase ${recording ? "text-cyan-400" : isExecuting ? "text-purple-400" : "text-gray-500"}`}>
+              {recording ? "RECORDING" : isExecuting ? "EXECUTING" : "STANDBY"}
             </p>
             <p className="text-[9px] text-gray-600 mt-0.5 font-mono truncate max-w-[200px]">{status}</p>
           </motion.div>
@@ -161,21 +154,21 @@ export default function VoicePanel({ onTriggerWorkflow, onResearchQuery, isExecu
         )}
 
         <motion.button
-          onClick={listening ? stopListening : startListening}
+          onClick={recording ? stopRecording : startRecording}
           disabled={isExecuting}
           whileHover={{ scale: 1.04 }}
           whileTap={{ scale: 0.96 }}
           className={`px-4 py-1.5 rounded-full font-bold text-[10px] tracking-widest uppercase flex items-center gap-2 font-mono transition-all ${
-            listening
+            recording
               ? "bg-red-500/15 hover:bg-red-500/25 border border-red-500/40 text-red-300"
               : "bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 text-cyan-300 disabled:opacity-40"
           }`}
         >
-          {listening ? <><MicOff className="w-3.5 h-3.5" /> Stop</> : <><Mic className="w-3.5 h-3.5" /> Speak</>}
+          {recording ? <><MicOff className="w-3.5 h-3.5" /> Stop</> : <><Mic className="w-3.5 h-3.5" /> Speak</>}
         </motion.button>
 
         <AnimatePresence>
-          {prompt.trim() && !isExecuting && !listening && (
+          {prompt.trim() && !isExecuting && !recording && (
             <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="w-full">
               <motion.button
                 onClick={() => onResearchQuery(prompt.trim())}
@@ -223,7 +216,7 @@ export default function VoicePanel({ onTriggerWorkflow, onResearchQuery, isExecu
 
         <motion.button
           onClick={deploy}
-          disabled={isExecuting || listening}
+          disabled={isExecuting || recording}
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
           className="w-full bg-gradient-to-r from-purple-500/10 to-cyan-500/10 hover:from-purple-500/20 hover:to-cyan-500/20 border border-purple-500/30 text-purple-300 disabled:opacity-40 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest flex items-center justify-center gap-2 font-mono"

@@ -68,6 +68,32 @@ export async function simulateOmiWebhook(transcript: string): Promise<string> {
 }
 
 /**
+ * Transcribes audio via the backend proxy.
+ */
+export async function transcribeAudio(audioBlob: Blob): Promise<string> {
+  const formData = new FormData();
+  formData.append("file", audioBlob, "audio.webm");
+
+  const res = await fetch(`${BACKEND_URL}/api/voice/transcribe`, {
+    method: "POST",
+    body: formData,
+  });
+
+  if (!res.ok) {
+    const errText = await res.text();
+    try {
+      const errObj = JSON.parse(errText);
+      throw new Error(errObj.detail || `Server returned ${res.status}`);
+    } catch {
+      throw new Error(errText || `Server returned ${res.status}`);
+    }
+  }
+
+  const data = await res.json();
+  return data.text || "";
+}
+
+/**
  * Queries Qdrant semantically.
  */
 export async function searchMemory(query: string, collection?: string): Promise<Record<string, any>> {
