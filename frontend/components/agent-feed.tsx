@@ -83,7 +83,7 @@ const DEFAULT_CONFIG = {
   status: "ERROR",
 };
 
-function AgentLogEntry({ log, index }: { log: LogEntry; index: number }) {
+function AgentLogEntry({ log }: { log: LogEntry }) {
   const config = AGENT_CONFIG[log.sender] ?? DEFAULT_CONFIG;
   const isError = log.level === "error";
 
@@ -221,7 +221,7 @@ export default function AgentFeed({ logs, filter, onClearFilter }: AgentFeedProp
         ) : (
           <AnimatePresence initial={false}>
             {filteredLogs.map((log, i) => (
-              <AgentLogEntry key={i} log={log} index={i} />
+              <AgentLogEntry key={`${log.timestamp}-${log.sender}-${i}`} log={log} />
             ))}
           </AnimatePresence>
         )}

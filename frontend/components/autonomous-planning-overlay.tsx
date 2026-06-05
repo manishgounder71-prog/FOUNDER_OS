@@ -39,45 +39,66 @@ export default function AutonomousPlanningOverlay({
   // Reset state when overlay becomes visible
   useEffect(() => {
     if (!isVisible) {
-      setPhase("goal");
-      setVisibleTasks(0);
-      setTypedPrompt("");
-      return;
+      // Defer state resets to avoid synchronous setState inside effect
+      const raf = requestAnimationFrame(() => {
+        setPhase("goal");
+        setVisibleTasks(0);
+        setTypedPrompt("");
+      });
+      return () => cancelAnimationFrame(raf);
     }
 
-    // Phase 1: Typewrite the prompt
-    setPhase("goal");
-    let charIdx = 0;
-    const typeInterval = setInterval(() => {
-      charIdx++;
-      setTypedPrompt(prompt.slice(0, charIdx));
-      if (charIdx >= prompt.length) {
-        clearInterval(typeInterval);
-        // Phase 2: Show tasks
-        setTimeout(() => {
-          setPhase("plan");
-          let taskIdx = 0;
-          const taskInterval = setInterval(() => {
-            taskIdx++;
-            setVisibleTasks(taskIdx);
-            if (taskIdx >= tasks.length) {
-              clearInterval(taskInterval);
-              // Phase 3: Deploy
-              setTimeout(() => {
-                setPhase("deploy");
-                setTimeout(() => {
-                  setPhase("done");
-                  onComplete();
-                }, 1200);
-              }, 600);
-            }
-          }, 280);
-        }, 600);
-      }
-    }, 22);
+    let isMounted = true;
+    let typeInterval: NodeJS.Timeout | undefined;
+    let taskInterval: NodeJS.Timeout | undefined;
 
-    return () => clearInterval(typeInterval);
-  }, [isVisible, prompt, tasks]);
+    // Defer initial phase setup to avoid synchronous setState inside effect
+    const timeoutId = setTimeout(() => {
+      if (!isMounted) return;
+      setPhase("goal");
+
+      let charIdx = 0;
+      typeInterval = setInterval(() => {
+        if (!isMounted) return;
+        charIdx++;
+        setTypedPrompt(prompt.slice(0, charIdx));
+        if (charIdx >= prompt.length) {
+          if (typeInterval) clearInterval(typeInterval);
+          // Phase 2: Show tasks
+          setTimeout(() => {
+            if (!isMounted) return;
+            setPhase("plan");
+            let taskIdx = 0;
+            taskInterval = setInterval(() => {
+              if (!isMounted) return;
+              taskIdx++;
+              setVisibleTasks(taskIdx);
+              if (taskIdx >= tasks.length) {
+                if (taskInterval) clearInterval(taskInterval);
+                // Phase 3: Deploy
+                setTimeout(() => {
+                  if (!isMounted) return;
+                  setPhase("deploy");
+                  setTimeout(() => {
+                    if (!isMounted) return;
+                    setPhase("done");
+                    onComplete();
+                  }, 1200);
+                }, 600);
+              }
+            }, 280);
+          }, 600);
+        }
+      }, 22);
+    }, 0);
+
+    return () => {
+      isMounted = false;
+      clearTimeout(timeoutId);
+      if (typeInterval) clearInterval(typeInterval);
+      if (taskInterval) clearInterval(taskInterval);
+    };
+  }, [isVisible, prompt, tasks, onComplete]);
 
   return (
     <AnimatePresence>

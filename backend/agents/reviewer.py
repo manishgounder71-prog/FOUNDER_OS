@@ -9,12 +9,31 @@ Prioritize depth — every section must contain substantive research-backed anal
 """
 
 REVIEWER_INSTRUCTIONS = """Synthesize all research, financial, and marketing inputs into a comprehensive launch strategy proposal.
-Your report MUST include ALL of the following sections with detailed, research-backed content:
+Your report MUST include ALL of the following sections with detailed, research-backed content.
 
+Additionally, you MUST embed two dynamic chart blocks inside the markdown so they render visually in the dashboard:
+1. A Market Sizing Bar Chart under 'Market Opportunity & Industry Trends' using the following exact format:
+```chart-bar
+Title: Market Opportunity (TAM/SAM/SOM in $ Billions)
+TAM: <value in billions, e.g. 740>
+SAM: <value in billions, e.g. 85>
+SOM: <value in billions, e.g. 2.1>
+```
+
+2. A Competitive Market Share Pie Chart under 'Competitive Landscape' using the following exact format (representing market shares of competitors and this startup, summing to 100%):
+```chart-pie
+Title: Market Share Distribution (%)
+<Competitor 1>: <percentage value, e.g. 35>
+<Competitor 2>: <percentage value, e.g. 25>
+<Competitor 3>: <percentage value, e.g. 15>
+Our Startup: <percentage value, e.g. 25>
+```
+
+Sections to include:
 1. Executive Summary & Tagline — high-level vision, problem, solution, market opportunity.
-2. Market Opportunity & Industry Trends — TAM/SAM/SOM, growth rate, emerging trends, technology shifts.
+2. Market Opportunity & Industry Trends — TAM/SAM/SOM, growth rate, emerging trends, technology shifts. Make sure to include the ```chart-bar block here.
 3. Customer Pain Points & Value Proposition — what existing solutions miss and how this product solves it.
-4. Competitive Landscape — detailed comparison table (at least 4 competitors), positioning map, differentiation.
+4. Competitive Landscape — detailed comparison table (at least 4 competitors), positioning map, differentiation. Make sure to include the ```chart-pie block here.
 5. SWOT Analysis — strengths, weaknesses, opportunities, threats with strategic implications.
 6. Technology Stack & Innovation — key tools, frameworks, AI infrastructure, architectural decisions.
 7. Risk Assessment & Mitigation — regulatory, technical, market, and operational risks with mitigation plans.

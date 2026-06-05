@@ -77,8 +77,8 @@ export default function VoicePanel({ onTriggerWorkflow, onResearchQuery, isExecu
           } else {
             setError("Server returned empty. Speak clearly.");
           }
-        } catch (err: any) {
-          setError(`Transcription error: ${err.message}`);
+        } catch (err: unknown) {
+          setError(`Transcription error: ${err instanceof Error ? err.message : "Unknown error"}`);
           setStatus("Ready");
         }
         setRecording(false);
@@ -88,7 +88,7 @@ export default function VoicePanel({ onTriggerWorkflow, onResearchQuery, isExecu
       recorderRef.current = mr;
       setRecording(true);
       setStatus("Recording...");
-    } catch (err: any) {
+    } catch (err: unknown) {
       setError("Microphone blocked. Allow mic in browser settings.");
       console.error(err);
     }

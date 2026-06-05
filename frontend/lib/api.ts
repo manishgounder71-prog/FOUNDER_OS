@@ -30,6 +30,21 @@ export interface TimelineItem {
   tag: string;
 }
 
+export interface MemoryHit {
+  id: string;
+  score: number;
+  payload: {
+    text?: string;
+    startup_name?: string;
+    type?: string;
+    timestamp?: string;
+    author?: string;
+    tag?: string;
+  };
+}
+
+export type MemorySearchResult = Record<string, MemoryHit[]>;
+
 /**
  * Triggers a new agent workflow from text input.
  */
@@ -96,7 +111,7 @@ export async function transcribeAudio(audioBlob: Blob): Promise<string> {
 /**
  * Queries Qdrant semantically.
  */
-export async function searchMemory(query: string, collection?: string): Promise<Record<string, any>> {
+export async function searchMemory(query: string, collection?: string): Promise<MemorySearchResult> {
   let url = `${BACKEND_URL}/api/memory/search?q=${encodeURIComponent(query)}`;
   if (collection) {
     url += `&collection=${encodeURIComponent(collection)}`;
@@ -137,7 +152,7 @@ export async function executeDirectiveResearch(query: string): Promise<{ directi
 /**
  * Saves a new vector memory directly inside Qdrant database.
  */
-export async function saveMemory(collection: string, text: string, metadata?: Record<string, any>): Promise<string> {
+export async function saveMemory(collection: string, text: string, metadata?: Record<string, string | number | boolean | null>): Promise<string> {
   const res = await fetch(`${BACKEND_URL}/api/memory/save`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },

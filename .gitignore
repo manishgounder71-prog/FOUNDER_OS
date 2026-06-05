@@ -23,4 +23,8 @@ frontend/build/
 .system_generated/
 .qodo/
 
+# Temporary files
+temp_audio/
+backend/test_debug_scripts/
+
 .vercel

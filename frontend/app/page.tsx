@@ -14,21 +14,18 @@ import BrainGraph from "@/components/brain-graph";
 import { BACKEND_URL, getTimeline, TimelineItem, Task, executeDirectiveResearch, simulateOmiWebhook } from "@/lib/api";
 import FounderPersona from "@/components/founder-persona";
 import DirectivePanel from "@/components/directive-panel";
-import { Radio, Database, Cpu, Shield, X, Sparkles, Award, ExternalLink, Presentation, Rocket } from "lucide-react";
+import { Database, Cpu, Shield, X, Sparkles, Award, ExternalLink, Presentation, Rocket } from "lucide-react";
 import confetti from "canvas-confetti";
 
 export default function Home() {
-  const [activeWorkflowId, setActiveWorkflowId] = useState<string | null>(null);
   const [isExecuting, setIsExecuting] = useState(false);
   const [status, setStatus] = useState<string>("idle");
   const [activeAgent, setActiveAgent] = useState<string>("None");
   const [currentStep, setCurrentStep] = useState(0);
-  const [logs, setLogs] = useState<any[]>([]);
+  const [logs, setLogs] = useState<{ timestamp: string; sender: string; message: string; level: string }[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [finalOutput, setFinalOutput] = useState("");
   
   // State for interactive features
-  const [memoryMatches, setMemoryMatches] = useState<any[]>([]);
   const [selectedAgentFilter, setSelectedAgentFilter] = useState<string | null>(null);
   const [isPitchModalOpen, setIsPitchModalOpen] = useState(false);
   const [rightActiveTab, setRightActiveTab] = useState<"search" | "persona">("search");
@@ -39,10 +36,10 @@ export default function Home() {
 
   // Timeline states
   const [timelineItems, setTimelineItems] = useState<TimelineItem[]>([]);
-  const [isTimelineLoading, setIsTimelineLoading] = useState(false);
+  const [isTimelineLoading, setIsTimelineLoading] = useState(true);
 
   // Directive Research states
-  const [directiveResults, setDirectiveResults] = useState<any[]>([]);
+  const [directiveResults, setDirectiveResults] = useState<{ title: string; url: string; snippet: string }[]>([]);
   const [isResearching, setIsResearching] = useState(false);
   const [directiveQuery, setDirectiveQuery] = useState("");
   const [directiveError, setDirectiveError] = useState<string | null>(null);
@@ -52,13 +49,10 @@ export default function Home() {
   const [overlayPrompt, setOverlayPrompt] = useState("");
   const [overlayTasks, setOverlayTasks] = useState<{ id: string; name: string; assignee: string }[]>([]);
 
-  // Load timeline items on mount
-  useEffect(() => {
-    fetchTimeline();
-  }, []);
-
-  const fetchTimeline = async () => {
-    setIsTimelineLoading(true);
+  const fetchTimeline = async (showLoading = false) => {
+    if (showLoading) {
+      setIsTimelineLoading(true);
+    }
     try {
       const items = await getTimeline();
       setTimelineItems(items);
@@ -68,6 +62,14 @@ export default function Home() {
       setIsTimelineLoading(false);
     }
   };
+
+  // Load timeline items on mount
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      fetchTimeline(false);
+    }, 0);
+    return () => clearTimeout(timeoutId);
+  }, []);
 
   const handleResearchQuery = async (query: string) => {
     setDirectiveQuery(query);
@@ -110,8 +112,8 @@ export default function Home() {
         setIsResearching(false);
         eventSource.close();
       };
-    } catch (err: any) {
-      setDirectiveError(err.message || "Failed to start research");
+    } catch (err: unknown) {
+      setDirectiveError(err instanceof Error ? err.message : "Failed to start research");
       setIsResearching(false);
     }
   };
@@ -123,15 +125,12 @@ export default function Home() {
 
   const handleTriggerWorkflow = (workflowId: string, promptText: string) => {
     // Reset state for new run
-    setActiveWorkflowId(workflowId);
     setIsExecuting(true);
     setStatus("running");
     setActiveAgent("None");
     setCurrentStep(0);
     setLogs([]);
     setTasks([]);
-    setFinalOutput("");
-    setMemoryMatches([]);
     setSelectedAgentFilter(null);
 
     // Show autonomous planning overlay
@@ -146,17 +145,6 @@ export default function Home() {
       try {
         const payload = JSON.parse(event.data);
         const { event: eventName, timestamp, data } = payload;
-
-        // Formulate a console log line
-        const formatLogSender = (evt: string) => {
-          if (evt.includes("memory")) return "Memory Agent";
-          if (evt.includes("research")) return "Research Agent";
-          if (evt.includes("financial")) return "Financial Agent";
-          if (evt.includes("content")) return "Content Agent";
-          if (evt.includes("review")) return "Reviewer Agent";
-          if (evt.includes("tasks")) return "Planner Agent";
-          return "System";
-        };
 
         // Handle specific SSE events
         switch (eventName) {
@@ -208,9 +196,6 @@ export default function Home() {
             break;
 
           case "memory_pulled":
-            if (data.matches) {
-              setMemoryMatches(data.matches);
-            }
             setLogs((prev) => [
               ...prev,
               {
@@ -277,7 +262,6 @@ export default function Home() {
 
           case "review_completed":
             setTasks(data.tasks);
-            setFinalOutput(data.final_output);
             setSelectedDocTitle("Executive Proposal");
             setSelectedDocContent(data.final_output);
             setLogs((prev) => [
@@ -293,7 +277,6 @@ export default function Home() {
 
           case "workflow_completed":
             setTasks(data.tasks);
-            setFinalOutput(data.final_output);
             setSelectedDocTitle("Executive Proposal");
             setSelectedDocContent(data.final_output);
             setStatus("completed");
@@ -460,7 +443,6 @@ export default function Home() {
               currentStep={currentStep} 
               status={status} 
               onSelectAgent={(agentName) => setSelectedAgentFilter(selectedAgentFilter === agentName ? null : agentName)}
-              memoryMatches={memoryMatches}
             />
           </div>
           <div>

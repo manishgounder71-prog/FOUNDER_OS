@@ -13,9 +13,13 @@ interface HudMetricsProps {
 }
 
 function useCountUp(target: number, duration = 600) {
-  const [val, setVal] = useState(0);
+  const [val, setVal] = useState(target);
   useEffect(() => {
-    if (target === 0) { setVal(0); return; }
+    if (target === 0) {
+      // Reset immediately without triggering cascade — set in a microtask
+      const raf = requestAnimationFrame(() => setVal(0));
+      return () => cancelAnimationFrame(raf);
+    }
     const steps = 20;
     const inc = target / steps;
     let cur = 0;

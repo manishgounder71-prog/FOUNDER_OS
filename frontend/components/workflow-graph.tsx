@@ -8,10 +8,9 @@ interface WorkflowGraphProps {
   currentStep: number;
   status: string;
   onSelectAgent?: (agentName: string) => void;
-  memoryMatches?: { collection: string; score: number; type: string; text?: string }[];
 }
 
-export default function WorkflowGraph({ activeAgent, currentStep, status, onSelectAgent, memoryMatches }: WorkflowGraphProps) {
+export default function WorkflowGraph({ activeAgent, currentStep, status, onSelectAgent }: WorkflowGraphProps) {
   // Determine states of each node
   const getAgentState = (agentName: string) => {
     if (status === "completed") return "completed";
@@ -335,31 +334,6 @@ export default function WorkflowGraph({ activeAgent, currentStep, status, onSele
           <span className="w-2.5 h-2.5 rounded-full bg-gray-950 border border-gray-800" /> Pending
         </div>
       </div>
-
-      {/* Floating Semantic Memory Matches Overlay */}
-      {memoryMatches && memoryMatches.length > 0 && (
-        <div className="absolute top-[80px] right-[24px] bg-[#0c0c0e]/95 border border-purple-500/30 rounded-xl p-3 max-w-[210px] backdrop-blur-md z-20 shadow-[0_0_15px_rgba(168,85,247,0.15)] animate-in fade-in slide-in-from-top-2 duration-300">
-          <p className="text-[9px] font-mono uppercase tracking-widest text-purple-400 font-bold mb-1.5 flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-purple-500 animate-ping" />
-            Semantic Retrieval
-          </p>
-          <div className="space-y-2">
-            {memoryMatches.map((m, idx) => (
-              <div key={idx} className="border-b border-gray-800/40 last:border-0 pb-1.5 last:pb-0">
-                <div className="flex justify-between items-center text-[10px] font-mono mb-0.5">
-                  <span className="text-gray-400 truncate max-w-[130px]" title={m.type}>{m.type}</span>
-                  <span className="text-emerald-400 font-bold">{(m.score * 100).toFixed(0)}% Match</span>
-                </div>
-                {m.text && (
-                  <p className="text-[8px] text-gray-500 font-sans leading-relaxed line-clamp-2">
-                    {m.text}
-                  </p>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   );
 }

@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { TimelineItem } from "@/lib/api";
-import { Calendar, Tag, ChevronDown, ChevronUp, FileText, Database } from "lucide-react";
+import { Calendar, Tag, ChevronDown, ChevronUp, Database } from "lucide-react";
 
 interface MemoryTimelineProps {
   items: TimelineItem[];

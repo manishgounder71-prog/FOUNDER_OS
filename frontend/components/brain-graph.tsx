@@ -2,7 +2,7 @@
 
 import React, { useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { BrainCircuit, X, ZoomIn } from "lucide-react";
+import { BrainCircuit, X } from "lucide-react";
 import { TimelineItem } from "@/lib/api";
 
 interface BrainGraphProps {

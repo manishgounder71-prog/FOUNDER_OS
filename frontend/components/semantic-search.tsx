@@ -1,16 +1,27 @@
 "use client";
 
 import React, { useState } from "react";
-import { Search, Compass, Database, FileText, ChevronRight, CornerDownRight } from "lucide-react";
+import { Search, Compass, Database, FileText, CornerDownRight } from "lucide-react";
 import { searchMemory } from "@/lib/api";
 
 interface SemanticSearchProps {
   onSelectDocument: (text: string, title: string) => void;
 }
 
+interface QdrantHit {
+  id: string;
+  score: number;
+  payload: {
+    text?: string;
+    startup_name?: string;
+    type?: string;
+    timestamp?: string;
+  };
+}
+
 export default function SemanticSearch({ onSelectDocument }: SemanticSearchProps) {
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<Record<string, any>>({});
+  const [results, setResults] = useState<Record<string, QdrantHit[]>>({});
   const [isSearching, setIsSearching] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
 
@@ -116,7 +127,7 @@ export default function SemanticSearch({ onSelectDocument }: SemanticSearchProps
 
                 {/* Match items */}
                 <div className="space-y-1.5 pl-2 border-l border-gray-800/80">
-                  {hits.map((hit: any) => {
+                  {hits.map((hit: QdrantHit) => {
                     const payload = hit.payload || {};
                     const text = payload.text || "";
                     const score = hit.score || 0.0;

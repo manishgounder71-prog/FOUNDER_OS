@@ -1,9 +1,8 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { User, Sparkles, Award, Settings, Check, RefreshCw, Cpu, BookOpen, PenTool } from "lucide-react";
-import { saveMemory, searchMemory } from "@/lib/api";
+import { User, Settings, Check, RefreshCw, Cpu } from "lucide-react";
+import { saveMemory, searchMemory, MemoryHit } from "@/lib/api";
 
 interface FounderPersonaProps {
   onRefreshTimeline?: () => void;
@@ -15,25 +14,22 @@ export default function FounderPersona({ onRefreshTimeline }: FounderPersonaProp
     "Founder Persona: Jane Doe. Core Focus: AI orchestration workflows, local-first markdown note-taking apps, Stripe subscription dynamic billing. Strategic Tendencies: Bootstrapping, low-CAC organic distribution, community-led growth (Reddit, Discord, HN). Preferred technologies: SQLite, Tailwind, Qdrant Vector DB, Gemini 1.5 Flash."
   );
   const [tempProfile, setTempProfile] = useState(profileText);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
 
-  // Load from Qdrant on mount
-  useEffect(() => {
-    fetchProfile();
-  }, []);
-
-  const fetchProfile = async () => {
-    setIsLoading(true);
+  const fetchProfile = async (showLoading = false) => {
+    if (showLoading) {
+      setIsLoading(true);
+    }
     try {
       // Semantic search for the seeded Founder Profile context
       const data = await searchMemory("Founder Persona", "startup_ideas");
       if (data && data["startup_ideas"] && data["startup_ideas"].length > 0) {
         // Find the profile record
-        const hit = data["startup_ideas"].find((h: any) => h.payload?.type === "Founder Profile");
+        const hit = data["startup_ideas"].find((h: MemoryHit) => h.payload?.type === "Founder Profile");
         if (hit) {
-          setProfileText(hit.payload.text);
-          setTempProfile(hit.payload.text);
+          setProfileText(hit.payload.text || "");
+          setTempProfile(hit.payload.text || "");
         }
       }
     } catch (err) {
@@ -42,6 +38,14 @@ export default function FounderPersona({ onRefreshTimeline }: FounderPersonaProp
       setIsLoading(false);
     }
   };
+
+  // Load from Qdrant on mount
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      fetchProfile(false);
+    }, 0);
+    return () => clearTimeout(timeoutId);
+  }, []);
 
   const handleSave = async () => {
     if (!tempProfile.trim()) return;
@@ -214,7 +218,7 @@ export default function FounderPersona({ onRefreshTimeline }: FounderPersonaProp
         </div>
         {!isEditing && (
           <button
-            onClick={fetchProfile}
+            onClick={() => fetchProfile(true)}
             disabled={isLoading}
             className="hover:text-purple-400 transition-colors uppercase tracking-widest"
           >

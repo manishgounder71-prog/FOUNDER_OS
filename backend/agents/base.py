@@ -43,7 +43,6 @@ def get_lyzr_model() -> Optional[OpenAIModel]:
         return None
     try:
         if settings.OPENROUTER_API_KEY:
-            import os
             os.environ["OPENAI_BASE_URL"] = "https://openrouter.ai/api/v1"
             model_name = "meta-llama/llama-3.3-70b-instruct:free"
         else:
@@ -270,6 +269,13 @@ A mobile-first study assistant that integrates spaced-repetition active recall w
 - **SOM**: $2.1B addressable via US university students (18M enrolled)
 - **Trends**: Voice interfaces in education up 47% YoY, AI-powered adaptive learning adoption accelerating post-pandemic
 
+```chart-bar
+Title: Market Opportunity (TAM/SAM/SOM in $ Billions)
+TAM: 740
+SAM: 85
+SOM: 2.1
+```
+
 ## 3. Customer Pain Points & Value Proposition
 - **Pain**: Students spend 60% of study time on passive review (re-reading notes) with 10% retention
 - **Pain**: Existing tools (Quizlet, Anki) lack semantic understanding and voice interaction
@@ -282,6 +288,15 @@ A mobile-first study assistant that integrates spaced-repetition active recall w
 | Anki | Great SRS algorithm | Poor UX, steep learning curve | Visual, gamified UI |
 | NotebookLM | Excellent summaries | No active recall cards | Integrated gamification |
 | Khan Academy | Trusted brand, free content | No voice interaction | Voice-first active recall |
+
+```chart-pie
+Title: Market Share Distribution (%)
+Quizlet: 35
+Anki: 15
+NotebookLM: 8
+Khan Academy: 12
+Our Startup: 30
+```
 
 ## 5. SWOT Analysis
 - **Strengths**: Voice-first differentiation, Omi wearable integration, semantic evaluation engine
@@ -373,6 +388,13 @@ A markdown-based note-taking app that runs entirely locally, utilizing local SQL
 - **SOM**: $180M addressable via knowledge workers (30M US knowledge workers)
 - **Trends**: Privacy regulations driving demand for local-first, AI semantic search replacing folder hierarchies, knowledge management spending up 40% among enterprises
 
+```chart-bar
+Title: Market Opportunity (TAM/SAM/SOM in $ Billions)
+TAM: 3.7
+SAM: 1.2
+SOM: 0.18
+```
+
 ## 3. Customer Pain Points & Value Proposition
 - **Pain**: Notion locks data in the cloud with no offline-first architecture
 - **Pain**: Obsidian has powerful plugins but no integrated AI semantic search
@@ -386,6 +408,15 @@ A markdown-based note-taking app that runs entirely locally, utilizing local SQL
 | Obsidian | Local markdown, plugins | No native AI, complex setup | Built-in semantic search |
 | Logseq | Local-first, outliner | Small ecosystem, niche UX | Broader markdown compatibility |
 | Roam Research | Bi-directional links | Expensive, cloud-only | Affordable local alternative |
+
+```chart-pie
+Title: Market Share Distribution (%)
+Notion: 45
+Obsidian: 25
+Logseq: 10
+Roam Research: 5
+Our Startup: 15
+```
 
 ## 5. SWOT Analysis
 - **Strengths**: True data ownership, local vector search, Omi voice integration, no monthly fee for core
@@ -475,6 +506,13 @@ A B2B SaaS dashboard that connects to Stripe/Paddle and uses a custom agent simu
 - **SOM**: $340M addressable via Stripe-connected SaaS startups (120K+ potential customers)
 - **Trends**: Shift from flat-rate to usage-based pricing (60% of new SaaS products), AI-driven dynamic pricing adoption up 3x since 2023
 
+```chart-bar
+Title: Market Opportunity (TAM/SAM/SOM in $ Billions)
+TAM: 15.2
+SAM: 4.8
+SOM: 0.34
+```
+
 ## 3. Customer Pain Points & Value Proposition
 - **Pain**: SaaS companies leave 15-35% MRR on the table with suboptimal pricing tiers
 - **Pain**: A/B testing pricing manually takes weeks and risks revenue loss
@@ -488,6 +526,15 @@ A B2B SaaS dashboard that connects to Stripe/Paddle and uses a custom agent simu
 | Stripe Billing | Subscription management infrastructure | No optimization recommendations | Prescriptive pricing suggestions |
 | Lago / Togai | Usage-based metering | Developer-heavy implementation | Plug-and-play dashboard |
 | ChartMogul | Subscription analytics | Retrospective only, no simulation | Forward-looking simulation |
+
+```chart-pie
+Title: Market Share Distribution (%)
+ProfitWell: 40
+Stripe Billing: 30
+Lago / Togai: 15
+ChartMogul: 5
+Our Startup: 10
+```
 
 ## 5. SWOT Analysis
 - **Strengths**: Agent-based simulation model, Stripe native integration, real-time revenue projection
@@ -645,6 +692,13 @@ An AI-powered neobank and embedded finance platform targeting underbanked consum
 - **SOM**: $3.2B addressable via US underbanked population and digital-first SMBs
 - **Trends**: Embedded finance APIs growing 35% CAGR; real-time rails (FedNow) live in 2024; AI underwriting replacing FICO scoring
 
+```chart-bar
+Title: Market Opportunity (TAM/SAM/SOM in $ Billions)
+TAM: 340
+SAM: 98
+SOM: 3.2
+```
+
 ## 3. Customer Pain Points & Value Proposition
 - **Pain**: 63M Americans unbanked/underbanked — excluded from fair credit markets
 - **Pain**: SMBs wait 3–5 days for payment settlement destroying cash flow
@@ -658,6 +712,15 @@ An AI-powered neobank and embedded finance platform targeting underbanked consum
 | Chime | Mass market, no fees | No credit products | AI credit building |
 | Wise | Trusted FX brand | Transfers only | Full banking suite |
 | Stripe | Dev API leader | Not consumer-facing | Consumer + SMB hybrid |
+
+```chart-pie
+Title: Market Share Distribution (%)
+Revolut: 40
+Wise: 20
+Stripe: 25
+Chime: 10
+Our Startup: 5
+```
 
 ## 5. SWOT Analysis
 - **Strengths**: FedNow real-time rails, AI underwriting, zero-fee model, embedded finance APIs
@@ -766,6 +829,13 @@ The global e-commerce market exceeded $5.8T in 2023 growing at 9%+ YoY, yet shop
 - **SOM**: $2.8B addressable via US Gen Z / Millennial mobile shoppers (80M users)
 - **Trends**: Voice commerce growing 24% YoY, AI shopping assistants adoption up 3x, 67% of shoppers want personalized product discovery
 
+```chart-bar
+Title: Market Opportunity (TAM/SAM/SOM in $ Billions)
+TAM: 5800
+SAM: 420
+SOM: 2.8
+```
+
 ## 3. Customer Pain Points & Value Proposition
 - **Pain**: Shoppers visit 4.2 sites before purchasing — no unified comparison
 - **Pain**: Existing tools (Honey) only apply codes, don't find deals
@@ -779,6 +849,15 @@ The global e-commerce market exceeded $5.8T in 2023 growing at 9%+ YoY, yet shop
 | Klarna | BNPL integration, curated collections | Biased to partners, no cross-store | Unbiased affiliate routing |
 | Shop (Shopify) | Order tracking, Shop Pay | Shopify-restricted | Universal store aggregation |
 | Capital One Shopping | Price comparison, coupon auto-apply | Credit card ecosystem lock | Independent, no card required |
+
+```chart-pie
+Title: Market Share Distribution (%)
+Honey: 45
+Klarna: 25
+Shop: 15
+Capital One Shopping: 10
+Our Startup: 5
+```
 
 ## 5. SWOT Analysis
 - **Strengths**: Voice-first UX, cross-aggregator engine, Omi wearable integration, transparent pricing
@@ -869,6 +948,13 @@ An autonomous AI-powered platform built to execute '{startup_name}' using a team
 - **SOM**: Addressable via early adopter developers and SMBs
 - **Trends**: Multi-agent orchestration, voice-first interfaces, local vector databases replacing cloud-first architectures
 
+```chart-bar
+Title: Market Opportunity (TAM/SAM/SOM in $ Billions)
+TAM: 1500
+SAM: 450
+SOM: 15.0
+```
+
 ## 3. Customer Pain Points & Value Proposition
 - **Pain**: Building AI-powered features requires complex orchestration across multiple services
 - **Pain**: Existing tools lack persistent memory and voice integration
@@ -881,6 +967,15 @@ An autonomous AI-powered platform built to execute '{startup_name}' using a team
 | Zapier AI | Large integration library | No deep agent orchestration | Custom agent pipelines |
 | AutoGPT | Autonomous agents | Unreliable, no persistence | Structured with Qdrant memory |
 | Relevance AI | Agent building platform | Expensive, cloud-dependent | Local-first + affordable |
+
+```chart-pie
+Title: Market Share Distribution (%)
+LangChain: 40
+Zapier AI: 30
+AutoGPT: 15
+Relevance AI: 10
+Our Startup: 5
+```
 
 ## 5. SWOT Analysis
 - **Strengths**: Voice-first architecture, Omi wearable integration, persistent Qdrant memory
