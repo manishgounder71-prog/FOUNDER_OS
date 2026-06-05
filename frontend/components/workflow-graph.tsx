@@ -125,8 +125,8 @@ export default function WorkflowGraph({ activeAgent, currentStep, status, onSele
             className={`stroke-2 fill-none transition-colors duration-500 ${
               activeAgent === "Research Agent" 
                 ? "stroke-cyan-400 animate-dash" 
-                : plannerState === "completed" 
-                ? "stroke-green-800" 
+                : researcherState === "completed" 
+                ? "stroke-green-500 animate-dash" 
                 : "stroke-gray-800"
             }`}
           />
@@ -137,8 +137,8 @@ export default function WorkflowGraph({ activeAgent, currentStep, status, onSele
             className={`stroke-2 fill-none transition-colors duration-500 ${
               activeAgent === "Financial Agent" 
                 ? "stroke-cyan-400 animate-dash" 
-                : plannerState === "completed" 
-                ? "stroke-green-800" 
+                : financialState === "completed" 
+                ? "stroke-green-500 animate-dash" 
                 : "stroke-gray-800"
             }`}
           />
@@ -149,8 +149,8 @@ export default function WorkflowGraph({ activeAgent, currentStep, status, onSele
             className={`stroke-2 fill-none transition-colors duration-500 ${
               activeAgent === "Content Agent" 
                 ? "stroke-cyan-400 animate-dash" 
-                : plannerState === "completed" 
-                ? "stroke-green-800" 
+                : contentState === "completed" 
+                ? "stroke-green-500 animate-dash" 
                 : "stroke-gray-800"
             }`}
           />
@@ -161,8 +161,8 @@ export default function WorkflowGraph({ activeAgent, currentStep, status, onSele
             className={`stroke-2 fill-none stroke-dashed transition-colors duration-500 ${
               activeAgent === "Memory Agent" && currentStep === 2
                 ? "stroke-cyan-400 animate-dash" 
-                : plannerState === "completed" 
-                ? "stroke-green-800" 
+                : currentStep > 2 || status === "completed"
+                ? "stroke-green-500 animate-dash" 
                 : "stroke-gray-800"
             }`}
             style={{ strokeDasharray: "4,4" }}
@@ -174,8 +174,8 @@ export default function WorkflowGraph({ activeAgent, currentStep, status, onSele
             className={`stroke-2 fill-none transition-colors duration-500 ${
               activeAgent === "Reviewer Agent" 
                 ? "stroke-cyan-400 animate-dash" 
-                : researcherState === "completed" 
-                ? "stroke-green-800" 
+                : reviewerState === "completed" 
+                ? "stroke-green-500 animate-dash" 
                 : "stroke-gray-800"
             }`}
           />
@@ -186,8 +186,8 @@ export default function WorkflowGraph({ activeAgent, currentStep, status, onSele
             className={`stroke-2 fill-none transition-colors duration-500 ${
               activeAgent === "Reviewer Agent" 
                 ? "stroke-cyan-400 animate-dash" 
-                : financialState === "completed" 
-                ? "stroke-green-800" 
+                : reviewerState === "completed" 
+                ? "stroke-green-500 animate-dash" 
                 : "stroke-gray-800"
             }`}
           />
@@ -198,8 +198,8 @@ export default function WorkflowGraph({ activeAgent, currentStep, status, onSele
             className={`stroke-2 fill-none transition-colors duration-500 ${
               activeAgent === "Reviewer Agent" 
                 ? "stroke-cyan-400 animate-dash" 
-                : contentState === "completed" 
-                ? "stroke-green-800" 
+                : reviewerState === "completed" 
+                ? "stroke-green-500 animate-dash" 
                 : "stroke-gray-800"
             }`}
           />
@@ -210,8 +210,8 @@ export default function WorkflowGraph({ activeAgent, currentStep, status, onSele
             className={`stroke-2 fill-none transition-colors duration-500 ${
               activeAgent === "Memory Agent" && currentStep === 7
                 ? "stroke-cyan-400 animate-dash" 
-                : reviewerState === "completed" 
-                ? "stroke-green-800" 
+                : status === "completed" 
+                ? "stroke-green-500 animate-dash" 
                 : "stroke-gray-800"
             }`}
           />
