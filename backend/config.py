@@ -9,6 +9,8 @@ class Settings(BaseSettings):
     OPENAI_API_KEY: Optional[str] = None
     GEMINI_API_KEY: Optional[str] = None
     OPENROUTER_API_KEY: Optional[str] = None
+    LYZR_API_KEY: Optional[str] = None
+    LYZR_AGENT_ID: Optional[str] = None
     OMI_API_KEY: Optional[str] = None
     QDRANT_PATH: str = "./qdrant_db"
     QDRANT_URL: Optional[str] = None

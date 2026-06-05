@@ -7,6 +7,15 @@ from lyzr_automata.pipelines.linear_sync_pipeline import LinearSyncPipeline
 from backend.config import settings
 import google.generativeai as genai
 
+# Lyzr Agent Studio REST API integration (primary orchestration layer)
+try:
+    from backend.agents.lyzr_agent import run_lyzr_orchestrator, is_lyzr_configured
+    LYZR_API_AVAILABLE = True
+except ImportError:
+    LYZR_API_AVAILABLE = False
+    def is_lyzr_configured(): return False
+    def run_lyzr_orchestrator(*args, **kwargs): return None
+
 # Setup Gemini model fallback if key is available
 if settings.GEMINI_API_KEY:
     genai.configure(api_key=settings.GEMINI_API_KEY)
@@ -62,9 +71,27 @@ def get_lyzr_model() -> Optional[OpenAIModel]:
 
 def execute_agent_task(role: str, persona: str, instructions: str, input_data: str) -> str:
     """Executes a task for a given agent persona.
-    Tries Lyzr/OpenAI first, falls back to Gemini if available, and defaults to high-fidelity mock generators.
+    Priority chain:
+      1. Lyzr Agent Studio REST API (primary — Lyzr AI orchestration)
+      2. lyzr_automata LinearSyncPipeline via OpenRouter/OpenAI
+      3. Gemini (Google AI) fallback
+      4. High-fidelity contextual mock generators
     """
-    # 1. Try Lyzr / OpenAI
+    # ─── 1. Lyzr Agent Studio REST API (Primary Orchestration) ─────────────────
+    if LYZR_API_AVAILABLE and is_lyzr_configured():
+        try:
+            result = run_lyzr_orchestrator(
+                role=role,
+                task_instructions=instructions,
+                input_data=input_data
+            )
+            if result and len(result.strip()) > 50:
+                print(f"[LYZR-API] Successfully orchestrated '{role}' via Lyzr Agent Studio")
+                return result
+        except Exception as e:
+            print(f"[LYZR-API] Agent Studio call failed for '{role}', falling back: {e}")
+
+    # ─── 2. lyzr_automata LinearSyncPipeline (via OpenRouter/OpenAI) ───────────
     lyzr_model = get_lyzr_model()
     if lyzr_model:
         try:
@@ -84,17 +111,17 @@ def execute_agent_task(role: str, persona: str, instructions: str, input_data: s
             if results and len(results) > 0:
                 return results[0]['task_output']
         except Exception as e:
-            print(f"Lyzr pipeline run failed, falling back to Gemini/Mock: {e}")
+            print(f"[LYZR-AUTOMATA] Pipeline run failed for '{role}', falling back to Gemini/Mock: {e}")
 
-    # 2. Try Gemini Fallback
+    # ─── 3. Gemini Fallback ────────────────────────────────────────────────────
     if settings.GEMINI_API_KEY:
         try:
             prompt = f"{instructions}\n\nInput Data:\n{input_data}"
             return generate_text_gemini(prompt, system_instruction=persona)
         except Exception as e:
-            print(f"Gemini fallback run failed: {e}")
+            print(f"[GEMINI] Fallback run failed for '{role}': {e}")
 
-    # 3. Rich Contextual Simulation Fallback
+    # ─── 4. Rich Contextual Simulation Fallback ────────────────────────────────
     return get_contextual_mock_response(role, input_data)
 
 def get_contextual_mock_response(role: str, input_data: str) -> str:

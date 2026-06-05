@@ -17,6 +17,12 @@ services:
         sync: false          # Optional: Qdrant Cloud URL
       - key: QDRANT_API_KEY
         sync: false          # Optional: Qdrant Cloud API key
+      - key: LYZR_API_KEY
+        sync: false          # Lyzr AI API key (from studio.lyzr.ai)
+      - key: LYZR_AGENT_ID
+        sync: false          # Lyzr FounderOS Orchestrator agent ID
+      - key: OMI_API_KEY
+        sync: false          # Omi wearable security key
       - key: HOST
         value: 0.0.0.0
       - key: PORT
