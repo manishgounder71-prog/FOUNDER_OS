@@ -430,7 +430,7 @@ export default function Home() {
               error={directiveError}
             />
           </div>
-          <div className="h-[140px]">
+          <div className="flex-1 min-h-[220px]">
             <TaskBoard tasks={tasks} />
           </div>
         </div>

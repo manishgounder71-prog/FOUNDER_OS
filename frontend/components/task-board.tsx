@@ -56,7 +56,7 @@ export default function TaskBoard({ tasks }: TaskBoardProps) {
       </div>
 
       {/* Task List */}
-      <div className="flex-1 overflow-y-auto custom-scrollbar space-y-2.5 pr-2 min-h-[180px]">
+      <div className="flex-1 overflow-y-auto custom-scrollbar space-y-2.5 pr-2 min-h-[260px]">
         {tasks.length === 0 ? (
           <div className="h-full flex items-center justify-center text-gray-600 italic">
             Task checklist is empty.
