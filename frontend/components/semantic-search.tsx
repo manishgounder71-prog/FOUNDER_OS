@@ -97,6 +97,38 @@ export default function SemanticSearch({ onSelectDocument }: SemanticSearchProps
         </button>
       </form>
 
+      {/* Predefined Search Suggestion Chips */}
+      <div className="flex flex-wrap gap-1.5 mb-3 flex-shrink-0">
+        {[
+          { label: "Founder Profile", query: "Founder Persona" },
+          { label: "Competitors", query: "competitors" },
+          { label: "TAM / Market Size", query: "market sizing" },
+          { label: "Pricing Simulation", query: "pricing tiers" },
+        ].map((item) => (
+          <button
+            key={item.label}
+            type="button"
+            onClick={async () => {
+              setQuery(item.query);
+              setIsSearching(true);
+              setHasSearched(true);
+              try {
+                const data = await searchMemory(item.query);
+                setResults(data);
+              } catch (err) {
+                console.error(err);
+                setResults({});
+              } finally {
+                setIsSearching(false);
+              }
+            }}
+            className="text-[9px] font-mono uppercase tracking-wider bg-white/[0.02] hover:bg-cyan-500/10 border border-gray-800 hover:border-cyan-500/30 text-gray-400 hover:text-cyan-300 px-2 py-1 rounded-lg transition-all duration-200"
+          >
+            {item.label}
+          </button>
+        ))}
+      </div>
+
       {/* Results Box */}
       <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 min-h-[160px] space-y-4">
         {isSearching ? (
