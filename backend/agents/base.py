@@ -1038,7 +1038,8 @@ Our Startup: 5
     }
     
     # Return matched mock output
-    data = mocks[niche].get(role, "")
+    niche_data = mocks.get(niche, mocks["edtech"])
+    data = niche_data.get(role, "")
     if isinstance(data, dict):
         return json.dumps(data)
     return data

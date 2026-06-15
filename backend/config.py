@@ -18,6 +18,21 @@ class Settings(BaseSettings):
     HOST: str = "127.0.0.1"
     PORT: int = 8000
 
+    # Band.ai settings
+    BAND_REST_URL: Optional[str] = None
+    BAND_WS_URL: Optional[str] = None
+    BAND_ROOM_ID: Optional[str] = None
+    BAND_PLANNER_AGENT_ID: Optional[str] = None
+    BAND_PLANNER_API_KEY: Optional[str] = None
+    BAND_RESEARCHER_AGENT_ID: Optional[str] = None
+    BAND_RESEARCHER_API_KEY: Optional[str] = None
+    BAND_FINANCIAL_AGENT_ID: Optional[str] = None
+    BAND_FINANCIAL_API_KEY: Optional[str] = None
+    BAND_CONTENT_AGENT_ID: Optional[str] = None
+    BAND_CONTENT_API_KEY: Optional[str] = None
+    BAND_REVIEWER_AGENT_ID: Optional[str] = None
+    BAND_REVIEWER_API_KEY: Optional[str] = None
+
     
     # Allow loading from a .env file
     model_config = SettingsConfigDict(

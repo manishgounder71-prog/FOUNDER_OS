@@ -75,7 +75,7 @@ def create_lyzr_agent(name: str, description: str) -> Optional[str]:
         payload = {
             "name": name,
             "description": description,
-            "agent_role": f"FounderOS {name}",
+            "agent_role": f"FounderOS {name}", "system_prompt": FOUNDER_OS_SYSTEM_PROMPT,
             "agent_instructions": FOUNDER_OS_SYSTEM_PROMPT,
             "agent_goal": "Transform founder inputs into comprehensive startup launch strategies.",
             "provider_id": "openai",

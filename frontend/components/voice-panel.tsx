@@ -38,6 +38,7 @@ interface VoicePanelProps {
   onResearchQuery: (query: string) => void;
   isExecuting: boolean;
   isResearching: boolean;
+  mode?: "sequential" | "band";
 }
 
 const PRESETS = [
@@ -47,7 +48,7 @@ const PRESETS = [
   "Find market opportunities for a B2B SaaS pricing optimization dashboard.",
 ];
 
-export default function VoicePanel({ onTriggerWorkflow, onResearchQuery, isExecuting, isResearching }: VoicePanelProps) {
+export default function VoicePanel({ onTriggerWorkflow, onResearchQuery, isExecuting, isResearching, mode = "sequential" }: VoicePanelProps) {
   const [preset, setPreset] = useState(PRESETS[0]);
   const [prompt, setPrompt] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -61,7 +62,7 @@ export default function VoicePanel({ onTriggerWorkflow, onResearchQuery, isExecu
     if (!text.trim()) { setError("Type or select a command first."); return; }
     setStatus(`Dispatching...`);
     try {
-      const id = await simulateOmiWebhook(text);
+      const id = await simulateOmiWebhook(text, mode);
       setStatus("Workforce online.");
       onTriggerWorkflow(id, text);
     } catch {

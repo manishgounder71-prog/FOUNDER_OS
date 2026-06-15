@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException, BackgroundTasks
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
+from typing import Optional
 import asyncio
 import json
 from backend.workflows.engine import WorkflowEngine, ACTIVE_WORKFLOWS, WORKFLOW_QUEUES
@@ -9,6 +10,7 @@ router = APIRouter(prefix="/api/workflow", tags=["workflow"])
 
 class ExecuteWorkflowRequest(BaseModel):
     prompt: str
+    mode: Optional[str] = "sequential"
 
 @router.post("/execute")
 async def execute_workflow(
@@ -25,7 +27,11 @@ async def execute_workflow(
     workflow_id = WorkflowEngine.create_workflow(prompt)
     
     # Run the workflow execution in the background
-    background_tasks.add_task(WorkflowEngine.execute_workflow, workflow_id)
+    if request.mode == "band":
+        from backend.workflows.band_engine import BandWorkflowEngine
+        background_tasks.add_task(BandWorkflowEngine.execute_workflow, workflow_id)
+    else:
+        background_tasks.add_task(WorkflowEngine.execute_workflow, workflow_id)
     
     return {
         "status": "triggered",

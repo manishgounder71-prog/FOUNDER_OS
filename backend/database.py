@@ -12,6 +12,17 @@ from backend.config import settings
 _qdrant_client = None
 _qdrant_lock = threading.RLock()
 
+# Initialize OpenAI Client lazily
+_openai_client = None
+_openai_lock = threading.RLock()
+
+def get_openai_client() -> Optional[OpenAI]:
+    global _openai_client
+    with _openai_lock:
+        if _openai_client is None and settings.OPENAI_API_KEY:
+            _openai_client = OpenAI(api_key=settings.OPENAI_API_KEY)
+        return _openai_client
+
 def get_qdrant_client() -> QdrantClient:
     global _qdrant_client
     with _qdrant_lock:
@@ -110,11 +121,11 @@ def get_embedding(text: str) -> List[float]:
     """Generates a vector embedding for the given text.
     Uses OpenAI if available, otherwise falls back to a deterministic mock vector.
     """
-    if not settings.OPENAI_API_KEY:
+    client = get_openai_client()
+    if not client:
         return get_mock_embedding(text)
     
     try:
-        client = OpenAI(api_key=settings.OPENAI_API_KEY)
         response = client.embeddings.create(
             input=[text],
             model="text-embedding-3-small"
@@ -158,14 +169,19 @@ def save_memory(collection: str, text: str, metadata: Optional[Dict[str, Any]] =
 # 0.40 is a practical threshold: below this the topic is genuinely different.
 SCORE_THRESHOLD = 0.40
 
-def search_memory(collection: str, query: str, limit: int = 5) -> List[Dict[str, Any]]:
+def search_memory(
+    collection: str,
+    query: str,
+    limit: int = 5,
+    precomputed_vector: Optional[List[float]] = None
+) -> List[Dict[str, Any]]:
     """Searches a specific collection semantically based on a query string.
     Only returns results whose cosine similarity meets the SCORE_THRESHOLD.
     """
     if collection not in COLLECTIONS:
         raise ValueError(f"Invalid collection name: {collection}")
         
-    vector = get_embedding(query)
+    vector = precomputed_vector if precomputed_vector is not None else get_embedding(query)
     with _qdrant_lock:
         search_results = get_qdrant_client().query_points(
             collection_name=collection,
@@ -238,9 +254,10 @@ def search_all_collections(query: str, limit_per_collection: int = 3) -> Dict[st
     """Queries all collections semantically and returns aggregated results.
     Only includes collections that have at least one result above SCORE_THRESHOLD.
     """
+    vector = get_embedding(query)
     aggregated = {}
     for col in COLLECTIONS:
-        results = search_memory(col, query, limit=limit_per_collection)
+        results = search_memory(col, query, limit=limit_per_collection, precomputed_vector=vector)
         # Only include collections with genuine matches (score_threshold already applied)
         if results:
             aggregated[col] = results

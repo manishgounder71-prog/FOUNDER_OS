@@ -14,7 +14,8 @@ import BrainGraph from "@/components/brain-graph";
 import { BACKEND_URL, getTimeline, TimelineItem, Task, executeDirectiveResearch, simulateOmiWebhook } from "@/lib/api";
 import FounderPersona from "@/components/founder-persona";
 import DirectivePanel from "@/components/directive-panel";
-import { Database, Cpu, Shield, X, Sparkles, Award, ExternalLink, Presentation, Rocket } from "lucide-react";
+import BandRoom, { BandMessage } from "@/components/band-room";
+import { Database, Cpu, Shield, X, Sparkles, Award, ExternalLink, Presentation, Rocket, MessageSquare } from "lucide-react";
 import confetti from "canvas-confetti";
 
 export default function Home() {
@@ -28,7 +29,9 @@ export default function Home() {
   // State for interactive features
   const [selectedAgentFilter, setSelectedAgentFilter] = useState<string | null>(null);
   const [isPitchModalOpen, setIsPitchModalOpen] = useState(false);
-  const [rightActiveTab, setRightActiveTab] = useState<"search" | "persona">("search");
+  const [rightActiveTab, setRightActiveTab] = useState<"search" | "persona" | "band">("band");
+  const [bandMessages, setBandMessages] = useState<BandMessage[]>([]);
+  const [executionMode, setExecutionMode] = useState<"sequential" | "band">("band");
   
   // Document Viewer states
   const [selectedDocTitle, setSelectedDocTitle] = useState("Executive Strategy");
@@ -149,6 +152,7 @@ export default function Home() {
         // Handle specific SSE events
         switch (eventName) {
           case "workflow_started":
+            setBandMessages([]);
             setLogs((prev) => [
               ...prev,
               {
@@ -156,6 +160,45 @@ export default function Home() {
                 sender: "System",
                 message: `Initiating agent pipeline for task: "${promptText}"`,
                 level: "info"
+              }
+            ]);
+            break;
+
+          case "band_agent_joined":
+            setBandMessages((prev) => [
+              ...prev,
+              {
+                id: `join-${Date.now()}-${Math.random()}`,
+                sender: data.agent,
+                message: `${data.agent} (${data.role}) joined the room.`,
+                timestamp: new Date(timestamp || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                type: "system"
+              }
+            ]);
+            break;
+
+          case "band_message_created":
+            setBandMessages((prev) => [
+              ...prev,
+              {
+                id: `msg-${Date.now()}-${Math.random()}`,
+                sender: data.agent,
+                message: data.message,
+                timestamp: new Date(timestamp || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                type: "message"
+              }
+            ]);
+            break;
+
+          case "band_thought_logged":
+            setBandMessages((prev) => [
+              ...prev,
+              {
+                id: `thought-${Date.now()}-${Math.random()}`,
+                sender: data.agent,
+                thought: data.thought,
+                timestamp: new Date(timestamp || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                type: "thought"
               }
             ]);
             break;
@@ -376,6 +419,36 @@ export default function Home() {
         </div>
 
         <div className="flex items-center gap-6 text-[10px] font-mono uppercase tracking-widest text-gray-400">
+          {/* Execution Mode Selector */}
+          <div className="flex items-center bg-black/45 border border-gray-850 rounded-lg p-0.5">
+            <button
+              onClick={() => {
+                setExecutionMode("sequential");
+                setRightActiveTab("search");
+              }}
+              className={`px-3 py-1 rounded-md text-[9px] font-bold font-mono tracking-widest uppercase transition-all duration-300 ${
+                executionMode === "sequential"
+                  ? "bg-purple-500/15 text-purple-400 border border-purple-500/30"
+                  : "text-gray-500 hover:text-gray-300"
+              }`}
+            >
+              Sequential
+            </button>
+            <button
+              onClick={() => {
+                setExecutionMode("band");
+                setRightActiveTab("band");
+              }}
+              className={`px-3 py-1 rounded-md text-[9px] font-bold font-mono tracking-widest uppercase transition-all duration-300 ${
+                executionMode === "band"
+                  ? "bg-cyan-500/15 text-cyan-400 border border-cyan-500/30"
+                  : "text-gray-500 hover:text-gray-300"
+              }`}
+            >
+              Band Mesh
+            </button>
+          </div>
+
           <button 
             onClick={() => setIsPitchModalOpen(true)}
             className="flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-purple-500/20 to-cyan-500/20 hover:from-purple-500/35 hover:to-cyan-500/35 border border-purple-500/40 text-purple-300 hover:text-purple-200 transition-all duration-300 rounded-lg font-mono text-[9px] font-bold"
@@ -420,6 +493,7 @@ export default function Home() {
               onResearchQuery={handleResearchQuery}
               isExecuting={isExecuting}
               isResearching={isResearching}
+              mode={executionMode}
             />
           </div>
           <div className="max-h-[200px] overflow-y-auto">
@@ -467,10 +541,20 @@ export default function Home() {
             {/* Tabs selector */}
             <div className="flex gap-2 bg-[#08080a]/50 border border-gray-900/60 p-1 rounded-xl flex-shrink-0">
               <button
+                onClick={() => setRightActiveTab("band")}
+                className={`flex-1 py-1.5 text-[9px] font-bold font-mono uppercase tracking-widest rounded-lg transition-all duration-300 ${
+                  rightActiveTab === "band"
+                    ? "bg-cyan-500/10 text-cyan-400 border border-cyan-500/20"
+                    : "text-gray-500 hover:text-gray-300"
+                }`}
+              >
+                Band Room
+              </button>
+              <button
                 onClick={() => setRightActiveTab("search")}
                 className={`flex-1 py-1.5 text-[9px] font-bold font-mono uppercase tracking-widest rounded-lg transition-all duration-300 ${
                   rightActiveTab === "search"
-                    ? "bg-cyan-500/10 text-cyan-400 border border-cyan-500/20"
+                    ? "bg-purple-500/10 text-purple-400 border border-purple-500/20"
                     : "text-gray-500 hover:text-gray-300"
                 }`}
               >
@@ -489,7 +573,9 @@ export default function Home() {
             </div>
 
             <div className="flex-1 min-h-0">
-              {rightActiveTab === "search" ? (
+              {rightActiveTab === "band" ? (
+                <BandRoom messages={bandMessages} activeAgent={activeAgent} status={status} />
+              ) : rightActiveTab === "search" ? (
                 <SemanticSearch onSelectDocument={handleSelectTimelineItem} />
               ) : (
                 <FounderPersona onRefreshTimeline={fetchTimeline} />
@@ -588,7 +674,7 @@ export default function Home() {
                       onClick={async () => {
                         setIsPitchModalOpen(false);
                         try {
-                          const workflowId = await simulateOmiWebhook(preset.prompt);
+                          const workflowId = await simulateOmiWebhook(preset.prompt, executionMode);
                           handleTriggerWorkflow(workflowId, preset.prompt);
                         } catch (err) {
                           console.error("Preset demo failed", err);

@@ -62,6 +62,7 @@ class OmiWebhookPayload(BaseModel):
     session_id: Optional[str] = None
     speaker: Optional[str] = "founder"
     simulated: Optional[bool] = False
+    mode: Optional[str] = "sequential"
 
 @router.post("/omi-webhook")
 async def omi_webhook(
@@ -120,7 +121,11 @@ async def omi_webhook(
 
     # Start the workflow autonomous execution in background
     workflow_id = WorkflowEngine.create_workflow(transcript)
-    background_tasks.add_task(WorkflowEngine.execute_workflow, workflow_id)
+    if payload.mode == "band":
+        from backend.workflows.band_engine import BandWorkflowEngine
+        background_tasks.add_task(BandWorkflowEngine.execute_workflow, workflow_id)
+    else:
+        background_tasks.add_task(WorkflowEngine.execute_workflow, workflow_id)
 
     return {
         "status": "triggered",

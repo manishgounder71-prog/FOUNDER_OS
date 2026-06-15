@@ -48,11 +48,11 @@ export type MemorySearchResult = Record<string, MemoryHit[]>;
 /**
  * Triggers a new agent workflow from text input.
  */
-export async function executeWorkflow(prompt: string): Promise<string> {
+export async function executeWorkflow(prompt: string, mode: "sequential" | "band" = "sequential"): Promise<string> {
   const res = await fetch(`${BACKEND_URL}/api/workflow/execute`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ prompt }),
+    body: JSON.stringify({ prompt, mode }),
   });
   if (!res.ok) {
     throw new Error(`Failed to trigger workflow: ${res.statusText}`);
@@ -64,7 +64,7 @@ export async function executeWorkflow(prompt: string): Promise<string> {
 /**
  * Simulates a physical Omi wearable device webhook push.
  */
-export async function simulateOmiWebhook(transcript: string): Promise<string> {
+export async function simulateOmiWebhook(transcript: string, mode: "sequential" | "band" = "sequential"): Promise<string> {
   const res = await fetch(`${BACKEND_URL}/api/voice/omi-webhook`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -72,7 +72,8 @@ export async function simulateOmiWebhook(transcript: string): Promise<string> {
       transcript,
       session_id: `omi-session-${Math.random().toString(36).substring(7)}`,
       speaker: "founder",
-      simulated: true
+      simulated: true,
+      mode
     }),
   });
   if (!res.ok) {
